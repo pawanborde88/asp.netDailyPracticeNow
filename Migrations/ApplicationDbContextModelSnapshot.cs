@@ -115,34 +115,6 @@ namespace dailypracticeASPDotNet.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Address = "HQ Office, Mumbai, India",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            EmailId = "admin@example.com",
-                            FirstName = "System",
-                            LastName = "Admin",
-                            MiddleName = "Super",
-                            MobileNo = "9876543210",
-                            PasswordHash = "$2a$11$OsPalY7ze9VsBPps3J55Zu5sTbv3VjvgRxWSWLS7ktZ1J5M4WZXDe",
-                            RoleId = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            Address = "Pune, Maharashtra, India",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            EmailId = "user@example.com",
-                            FirstName = "Pawan",
-                            LastName = "Borde",
-                            MiddleName = "",
-                            MobileNo = "9123456780",
-                            PasswordHash = "$2a$11$OsPalY7ze9VsBPps3J55Zu5sTbv3VjvgRxWSWLS7ktZ1J5M4WZXDe",
-                            RoleId = 2
-                        });
                 });
 
             modelBuilder.Entity("dailypracticeASPDotNet.Models.Domain.User", b =>

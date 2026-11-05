@@ -59,39 +59,8 @@ namespace dailypracticeASPDotNet.Data
 
             modelBuilder.Entity<Role>().HasData(adminRole, userRole, managerRole);
 
-            // 2. Seed Default Users
-            // Verified BCrypt Hash for "Password@123"
-            const string defaultPasswordHash = "$2a$11$OsPalY7ze9VsBPps3J55Zu5sTbv3VjvgRxWSWLS7ktZ1J5M4WZXDe";
-
-            var adminUser = new User
-            {
-                Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                FirstName = "System",
-                MiddleName = "Super",
-                LastName = "Admin",
-                EmailId = "admin@example.com",
-                MobileNo = "9876543210",
-                Address = "HQ Office, Mumbai, India",
-                RoleId = 1,
-                PasswordHash = defaultPasswordHash,
-                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-            };
-
-            var practiceUser = new User
-            {
-                Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                FirstName = "Pawan",
-                MiddleName = "",
-                LastName = "Borde",
-                EmailId = "user@example.com",
-                MobileNo = "9123456780",
-                Address = "Pune, Maharashtra, India",
-                RoleId = 2,
-                PasswordHash = defaultPasswordHash,
-                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-            };
-
-            modelBuilder.Entity<User>().HasData(adminUser, practiceUser);
+            // Roles are seeded to provide valid role_id values (1 = Admin, 2 = User, 3 = Manager)
+            // Users are dynamically created via the add_user API (no hardcoded users)
         }
     }
 }
