@@ -23,23 +23,19 @@ if (!string.IsNullOrEmpty(port))
 builder.Services.AddControllers();
 
 // ==========================================
-// 2. DATABASE CONTEXT CONFIGURATION (SQL Server & SQLite Auto-Detection)
+// 2. DATABASE CONTEXT CONFIGURATION
 // ==========================================
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Retrieves connection string (SQLite "dailypractice.db" in production/Render, SQL Server in local Development)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Data Source=dailypractice.db";
 
-// Check if running on Render or a Linux cloud environment where local Windows machine names (DESKTOP-*) cannot resolve
-bool isRenderOrLinux = !OperatingSystem.IsWindows() || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RENDER"));
-bool isLocalWindowsHost = connectionString?.Contains("DESKTOP-", StringComparison.OrdinalIgnoreCase) == true
-                       || connectionString?.Contains("SQLEXPRESS", StringComparison.OrdinalIgnoreCase) == true;
-
-// Use SQLite if explicitly configured with .db, OR if running on Render/Linux where local Windows hostnames are unresolvable
-bool useSqlite = (connectionString?.Contains(".db", StringComparison.OrdinalIgnoreCase) == true)
-              || (isRenderOrLinux && isLocalWindowsHost)
-              || string.IsNullOrWhiteSpace(connectionString);
+bool useSqlite = connectionString.Contains(".db", StringComparison.OrdinalIgnoreCase)
+              || connectionString.Contains("sqlite", StringComparison.OrdinalIgnoreCase)
+              || (!OperatingSystem.IsWindows() && connectionString.Contains("DESKTOP-", StringComparison.OrdinalIgnoreCase));
 
 if (useSqlite)
 {
-    var sqliteConnection = connectionString?.Contains(".db", StringComparison.OrdinalIgnoreCase) == true
+    var sqliteConnection = connectionString.Contains(".db", StringComparison.OrdinalIgnoreCase)
         ? connectionString
         : "Data Source=dailypractice.db";
 
@@ -107,7 +103,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Daily Practice ASP.NET Core Web API",
+        Title = "Daily Practice Web API [Cloud Ready]",
         Version = "v1",
         Description = "ASP.NET Core Web API with add_user, fetch_users, login API, JWT Authentication, EF Core, Repository Pattern, and AutoMapper"
     });
