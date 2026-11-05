@@ -1,5 +1,6 @@
 # ==============================================================================
 # Multi-Stage Dockerfile for ASP.NET Core Web API (.NET 10)
+# Compatible with Render, Docker, and Cloud Deployments
 # ==============================================================================
 
 # Stage 1: Build & Publish
@@ -20,13 +21,13 @@ RUN dotnet publish "dailypracticeASPDotNet.csproj" -c Release -o /app/publish /p
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Standard port for modern .NET containers
+# Standard container ports
 EXPOSE 8080
-EXPOSE 8081
+EXPOSE 10000
 
 # Configure container environment
-ENV ASPNETCORE_URLS=http://+:8080
-ENV ASPNETCORE_ENVIRONMENT=Development
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV EnableSwagger=true
 
 # Copy compiled artifacts from build stage
 COPY --from=build /app/publish .

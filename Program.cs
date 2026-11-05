@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -9,18 +10,51 @@ using dailypracticeASPDotNet.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Dynamic port binding for Cloud Platforms (Render, Railway, Fly.io, etc.)
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 // ==========================================
 // 1. CONTROLLERS CONFIGURATION
 // ==========================================
 builder.Services.AddControllers();
 
 // ==========================================
-// 2. DATABASE CONTEXT CONFIGURATION
+// 2. DATABASE CONTEXT CONFIGURATION (SQL Server & SQLite Auto-Detection)
 // ==========================================
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Check if running on Render or a Linux cloud environment where local Windows machine names (DESKTOP-*) cannot resolve
+bool isRenderOrLinux = !OperatingSystem.IsWindows() || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RENDER"));
+bool isLocalWindowsHost = connectionString?.Contains("DESKTOP-", StringComparison.OrdinalIgnoreCase) == true
+                       || connectionString?.Contains("SQLEXPRESS", StringComparison.OrdinalIgnoreCase) == true;
+
+// Use SQLite if explicitly configured with .db, OR if running on Render/Linux where local Windows hostnames are unresolvable
+bool useSqlite = (connectionString?.Contains(".db", StringComparison.OrdinalIgnoreCase) == true)
+              || (isRenderOrLinux && isLocalWindowsHost)
+              || string.IsNullOrWhiteSpace(connectionString);
+
+if (useSqlite)
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+    var sqliteConnection = connectionString?.Contains(".db", StringComparison.OrdinalIgnoreCase) == true
+        ? connectionString
+        : "Data Source=dailypractice.db";
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    {
+        options.UseSqlite(sqliteConnection);
+    });
+}
+else
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    {
+        options.UseSqlServer(connectionString);
+    });
+}
 
 // ==========================================
 // 3. REPOSITORY PATTERN DEPENDENCY INJECTION
@@ -36,10 +70,9 @@ builder.Services.AddAutoMapper(cfg => cfg.AddProfile<AutoMapperProfiles>());
 // ==========================================
 // 5. JWT AUTHENTICATION CONFIGURATION
 // ==========================================
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Jwt:Key is not set in appsettings.json");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-var jwtAudience = builder.Configuration["Jwt:Audience"];
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "DailyPracticeSecretSuperKey1234567890!@#$%^&*()_+";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "DailyPracticeASPDotNet";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "DailyPracticeASPDotNetUsers";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -76,10 +109,9 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Daily Practice ASP.NET Core Web API",
         Version = "v1",
-        Description = "ASP.NET Core Web API with add_user, fetch_users, login API, JWT Authentication, EF Core Migrations, Repository Pattern, and AutoMapper"
+        Description = "ASP.NET Core Web API with add_user, fetch_users, login API, JWT Authentication, EF Core, Repository Pattern, and AutoMapper"
     });
 
-    // Add JWT Bearer definition to Swagger
     c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -102,38 +134,54 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // ==========================================
-// 8. AUTOMATIC MIGRATIONS ON STARTUP (FOR DOCKER & DEPLOYMENT)
+// 8. REVERSE PROXY SUPPORT (RENDER / DOCKER)
+// ==========================================
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+// ==========================================
+// 9. DATABASE INITIALIZATION & MIGRATIONS
 // ==========================================
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
-        // Asynchronously apply any pending database migrations
-        await db.Database.MigrateAsync();
+        if (db.Database.IsSqlite())
+        {
+            // For SQLite (used seamlessly on Render/containers), EnsureCreated creates tables and seeds roles
+            await db.Database.EnsureCreatedAsync();
+            logger.LogInformation("SQLite database initialized successfully.");
+        }
+        else
+        {
+            // For SQL Server, apply EF Core migrations
+            await db.Database.MigrateAsync();
+            logger.LogInformation("SQL Server database migrated successfully.");
+        }
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogWarning(ex, "Could not apply automatic database migrations at startup.");
     }
 }
 
 // ==========================================
-// 9. HTTP REQUEST PIPELINE
+// 10. HTTP REQUEST PIPELINE
 // ==========================================
-// Enable Swagger in Development or whenever configured (ideal for Docker deployments)
+// Serve Swagger UI on Development or in Container Deployments
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Daily Practice API v1");
-        c.RoutePrefix = string.Empty; // Serve Swagger UI directly at http://localhost:port/
+        c.RoutePrefix = string.Empty; // Serve Swagger UI directly at root
     });
 }
-
-app.UseHttpsRedirection();
 
 // Authentication MUST be placed before Authorization
 app.UseAuthentication();
