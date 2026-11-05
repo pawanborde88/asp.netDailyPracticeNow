@@ -10,14 +10,13 @@ using dailypracticeASPDotNet.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 // ==========================================
-// 1. CONTROLLERS & JSON FORMATTING
+// 1. CONTROLLERS CONFIGURATION
 // ==========================================
 builder.Services.AddControllers();
 
 // ==========================================
 // 2. DATABASE CONTEXT CONFIGURATION
 // ==========================================
-// Connects to SQL Server (DESKTOP-G23MTK2\SQLEXPRESS) configured in appsettings.json
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -103,9 +102,28 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // ==========================================
-// 8. HTTP REQUEST PIPELINE
+// 8. AUTOMATIC MIGRATIONS ON STARTUP (FOR DOCKER & DEPLOYMENT)
 // ==========================================
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        // Asynchronously apply any pending database migrations
+        await db.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning(ex, "Could not apply automatic database migrations at startup.");
+    }
+}
+
+// ==========================================
+// 9. HTTP REQUEST PIPELINE
+// ==========================================
+// Enable Swagger in Development or whenever configured (ideal for Docker deployments)
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>

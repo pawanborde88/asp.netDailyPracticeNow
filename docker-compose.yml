@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # ASP.NET Core Web API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dailypractice_aspnet_api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=DailyPracticeAuthDb;User Id=sa;Password=YourStrong@Password123;TrustServerCertificate=True;
+      - Jwt__Key=DailyPracticeSecretSuperKey1234567890!@#$%^&*()_+
+      - Jwt__Issuer=DailyPracticeASPDotNet
+      - Jwt__Audience=DailyPracticeASPDotNetUsers
+      - Jwt__DurationInMinutes=60
+    depends_on:
+      - sqlserver
+
+  # Microsoft SQL Server Database Service
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: dailypractice_sqlserver
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Password123
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+volumes:
+  sqlserver_data:
