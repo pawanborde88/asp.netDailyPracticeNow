@@ -1,0 +1,6 @@
+@dailypracticeASPDotNet_HostAddress = http://localhost:5229
+
+GET {{dailypracticeASPDotNet_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
