@@ -23,17 +23,19 @@ services:
       - key: Jwt__DurationInMinutes
         value: "60"
       - key: ZeptoMail__UseSmtp
-        value: "true"
+        value: "false"
       - key: ZeptoMail__SmtpHost
-        value: smtp.gmail.com
+        value: smtp.zeptomail.in
       - key: ZeptoMail__SmtpPort
         value: "587"
       - key: ZeptoMail__SmtpUsername
-        value: pawanborde8888@gmail.com
-      - key: ZeptoMail__SmtpPassword
-        value: urucxfhxhjgmmtfk
+        value: emailapikey
+      - key: ZeptoMail__ApiUrl
+        value: https://api.zeptomail.in/v1.1/email
+      - key: ZeptoMail__SendMailToken
+        value: Zoho-enczapikey PHtE6r1bS+noimR7oBNR5f7rEsDxYIgoqe1gfgBCudxLAvFRG00Eo919kGLhox95VfUWFP7NzIM+srOes+2GI2/qY2kZD2qyqK3sx/VYSPOZsbq6x00asFQfcEzdVofocN5j0yHQstjYNA==
       - key: ZeptoMail__FromEmail
-        value: pawanborde8888@gmail.com
+        value: noreply@pawanborde.com
       - key: ZeptoMail__FromName
         value: Daily Practice App
 
