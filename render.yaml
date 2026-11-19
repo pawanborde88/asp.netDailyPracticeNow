@@ -23,7 +23,7 @@ services:
       - key: Jwt__DurationInMinutes
         value: "60"
       - key: ZeptoMail__UseSmtp
-        value: "true"
+        value: "false"
       - key: ZeptoMail__SmtpHost
         value: smtp.zeptomail.in
       - key: ZeptoMail__SmtpPort

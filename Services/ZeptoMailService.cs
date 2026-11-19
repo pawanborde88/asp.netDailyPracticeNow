@@ -123,16 +123,16 @@ namespace dailypracticeASPDotNet.Services
             }
             catch (SmtpException ex)
             {
-                _logger.LogError(ex,
-                    "[ZeptoMail SMTP] SmtpException while sending to '{Email}'. Status: {StatusCode}, Message: {Message}",
-                    toEmail, ex.StatusCode, ex.Message);
+                _logger.LogWarning(ex,
+                    "[ZeptoMail SMTP] SMTP failed ({StatusCode}: {Message}). Automatically falling back to ZeptoMail REST API over HTTPS...",
+                    ex.StatusCode, ex.Message);
 
-                return (false, $"ZeptoMail SMTP Error ({ex.StatusCode}): {ex.Message}");
+                return await SendViaRestApiAsync(toEmail, toName, otpCode, htmlBody, textBody);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[ZeptoMail SMTP] Exception while sending email to '{Email}'.", toEmail);
-                return (false, $"SMTP connection failed: {ex.Message}");
+                _logger.LogWarning(ex, "[ZeptoMail SMTP] Exception encountered. Automatically falling back to ZeptoMail REST API over HTTPS...");
+                return await SendViaRestApiAsync(toEmail, toName, otpCode, htmlBody, textBody);
             }
         }
 
