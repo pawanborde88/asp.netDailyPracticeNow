@@ -77,8 +77,14 @@ namespace dailypracticeASPDotNet.Services
 
             // Password priority: SmtpPassword > SendMailToken
             var password = !string.IsNullOrWhiteSpace(_settings.SmtpPassword)
-                ? _settings.SmtpPassword
+                ? _settings.SmtpPassword.Trim()
                 : _settings.SendMailToken;
+
+            // Strip spaces if Gmail App Password (e.g. "uruc xfhx hjgm mtfk" -> "urucxfhxhjgmmtfk")
+            if (host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(password))
+            {
+                password = password.Replace(" ", "");
+            }
 
             if (string.IsNullOrWhiteSpace(password) || password.Contains("YOUR_ZEPTOMAIL_SEND_MAIL_TOKEN", StringComparison.OrdinalIgnoreCase))
             {
@@ -144,6 +150,7 @@ namespace dailypracticeASPDotNet.Services
             string toName,
             string otpCode,
             string htmlBody,
+            
             string textBody)
         {
             if (string.IsNullOrWhiteSpace(_settings.SendMailToken) ||
