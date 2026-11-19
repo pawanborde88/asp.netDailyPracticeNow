@@ -45,12 +45,71 @@ namespace dailypracticeASPDotNet.Repositories
             return user;
         }
 
+        public async Task<User?> UpdateAsync(Guid id, User user)
+        {
+            var existingUser = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (existingUser == null)
+            {
+                return null;
+            }
+
+            // Update scalar properties
+            existingUser.FirstName = user.FirstName;
+            existingUser.MiddleName = user.MiddleName;
+            existingUser.LastName = user.LastName;
+            existingUser.EmailId = user.EmailId;
+            existingUser.MobileNo = user.MobileNo;
+            existingUser.Address = user.Address;
+            existingUser.RoleId = user.RoleId;
+
+            // Update password hash only if a new non-empty hash was assigned
+            if (!string.IsNullOrWhiteSpace(user.PasswordHash))
+            {
+                existingUser.PasswordHash = user.PasswordHash;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Reload associated role in case RoleId was updated
+            await _context.Entry(existingUser).Reference(u => u.Role).LoadAsync();
+
+            return existingUser;
+        }
+
+        public async Task<User?> DeleteAsync(Guid id)
+        {
+            var existingUser = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (existingUser == null)
+            {
+                return null;
+            }
+
+            _context.Users.Remove(existingUser);
+            await _context.SaveChangesAsync();
+
+            return existingUser;
+        }
+
         public async Task<bool> ExistsByEmailAsync(string email)
         {
             var normalizedEmail = email.Trim().ToLower();
             // Asynchronously checks if user with this email already exists
             return await _context.Users
                 .AnyAsync(u => u.EmailId.ToLower() == normalizedEmail);
+        }
+
+        public async Task<bool> ExistsByEmailExcludingUserAsync(string email, Guid userId)
+        {
+            var normalizedEmail = email.Trim().ToLower();
+            // Asynchronously checks if another user exists with this email
+            return await _context.Users
+                .AnyAsync(u => u.EmailId.ToLower() == normalizedEmail && u.Id != userId);
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()

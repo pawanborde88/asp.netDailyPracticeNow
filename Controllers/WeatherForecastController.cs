@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using dailypracticeASPDotNet.DTOs;
 
 namespace dailypracticeASPDotNet.Controllers
 {
@@ -12,15 +13,18 @@ namespace dailypracticeASPDotNet.Controllers
         ];
 
         [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get()
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<WeatherForecast>>), StatusCodes.Status200OK)]
+        public IActionResult Get()
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            var forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
                 Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
                 TemperatureC = Random.Shared.Next(-20, 55),
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
             })
             .ToArray();
+
+            return Ok(ApiResponse<IEnumerable<WeatherForecast>>.SuccessResult(forecasts, "Weather forecast retrieved successfully."));
         }
     }
 }

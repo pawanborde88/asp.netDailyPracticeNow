@@ -23,6 +23,13 @@ namespace dailypracticeASPDotNet.Mappings
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.Role, opt => opt.Ignore());
 
+            // Map UpdateUserRequestDto to User Domain Model
+            CreateMap<UpdateUserRequestDto, User>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.Role, opt => opt.Ignore());
+
             // Map Role Domain Model to RoleDto
             CreateMap<Role, RoleDto>().ReverseMap();
         }

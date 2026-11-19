@@ -11,7 +11,10 @@ namespace dailypracticeASPDotNet.Repositories
         Task<User?> GetByEmailAsync(string email);
         Task<User?> GetByIdAsync(Guid id);
         Task<User> CreateAsync(User user);
+        Task<User?> UpdateAsync(Guid id, User user);
+        Task<User?> DeleteAsync(Guid id);
         Task<bool> ExistsByEmailAsync(string email);
+        Task<bool> ExistsByEmailExcludingUserAsync(string email, Guid userId);
         Task<IEnumerable<User>> GetAllAsync();
         Task<Role?> GetRoleByIdAsync(int roleId);
         Task<IEnumerable<Role>> GetAllRolesAsync();

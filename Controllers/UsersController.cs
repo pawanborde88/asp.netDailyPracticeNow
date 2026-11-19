@@ -7,8 +7,12 @@ using dailypracticeASPDotNet.Repositories;
 namespace dailypracticeASPDotNet.Controllers
 {
     /// <summary>
-    /// Users Controller providing add_user and fetch_users APIs.
-    /// Demonstrates Repository Pattern, AutoMapper, and async/await methods.
+    /// Users Controller providing full CRUD APIs with a standardized ApiResponse envelope:
+    /// 1. Add User (POST api/Users/add_user or POST api/Users)
+    /// 2. Edit User (PUT api/Users/edit_user/{id} or PUT api/Users/{id})
+    /// 3. Delete User (DELETE api/Users/delete_user/{id} or DELETE api/Users/{id})
+    /// 4. Fetch All Users (GET api/Users/fetch_users or GET api/Users)
+    /// Format: { "success": true, "message": "...", "data": ..., "errors": null }
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -28,36 +32,38 @@ namespace dailypracticeASPDotNet.Controllers
             _logger = logger;
         }
 
+        // =========================================================================
+        // 1. ADD USER API
+        // =========================================================================
         /// <summary>
-        /// add_user API - Creates a new user with first_name, middle_name, last_name, role_id, password, address, mobile_no, and email_id.
-        /// Hashes password with BCrypt and persists asynchronously via repository.
+        /// 1. Add User API - Creates a new user with validation and BCrypt password hashing.
         /// </summary>
         /// <param name="addUserDto">Payload containing user details</param>
-        /// <returns>Created user representation without sensitive fields</returns>
+        /// <returns>Standardized ApiResponse containing created UserDto</returns>
         [HttpPost("add_user")]
         [HttpPost("")]
-        [ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> AddUser([FromBody] AddUserRequestDto addUserDto)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(ApiResponse.ErrorResult("Validation failed.", ModelState));
             }
 
             // 1. Check if email already exists
             var exists = await _userRepository.ExistsByEmailAsync(addUserDto.EmailId);
             if (exists)
             {
-                return Conflict(new { message = $"A user with email '{addUserDto.EmailId}' already exists." });
+                return Conflict(ApiResponse.ErrorResult($"A user with email '{addUserDto.EmailId}' already exists."));
             }
 
             // 2. Validate that role_id exists
             var role = await _userRepository.GetRoleByIdAsync(addUserDto.RoleId);
             if (role == null)
             {
-                return BadRequest(new { message = $"Invalid role_id '{addUserDto.RoleId}'. Please provide a valid role ID (1 = Admin, 2 = User, 3 = Manager)." });
+                return BadRequest(ApiResponse.ErrorResult($"Invalid role_id '{addUserDto.RoleId}'. Please provide a valid role ID (1 = Admin, 2 = User, 3 = Manager)."));
             }
 
             // 3. Hash password securely using BCrypt
@@ -77,16 +83,127 @@ namespace dailypracticeASPDotNet.Controllers
 
             _logger.LogInformation("New user created successfully: {Email} (ID: {Id})", userDomainModel.EmailId, userDomainModel.Id);
 
-            return CreatedAtAction(nameof(GetUserById), new { id = userDomainModel.Id }, userDto);
+            var response = ApiResponse<UserDto>.SuccessResult(userDto, "User added successfully.");
+            return CreatedAtAction(nameof(GetUserById), new { id = userDomainModel.Id }, response);
         }
 
+        // =========================================================================
+        // 2. EDIT / UPDATE USER API
+        // =========================================================================
         /// <summary>
-        /// fetch_users API - Asynchronously retrieves all users with their roles from SQL Server.
+        /// 2. Edit User API - Updates an existing user's details by ID.
         /// </summary>
-        /// <returns>List of users</returns>
+        /// <param name="id">Unique GUID identifier of the user</param>
+        /// <param name="updateUserDto">Updated user information</param>
+        /// <returns>Standardized ApiResponse containing updated UserDto</returns>
+        [HttpPut("edit_user/{id:guid}")]
+        [HttpPut("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> EditUser([FromRoute] Guid id, [FromBody] UpdateUserRequestDto updateUserDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.ErrorResult("Validation failed.", ModelState));
+            }
+
+            // 1. Verify user exists
+            var existingUser = await _userRepository.GetByIdAsync(id);
+            if (existingUser == null)
+            {
+                return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
+            }
+
+            // 2. Validate email uniqueness (ensure no other user already uses this email)
+            var emailExistsOnOtherUser = await _userRepository.ExistsByEmailExcludingUserAsync(updateUserDto.EmailId, id);
+            if (emailExistsOnOtherUser)
+            {
+                return Conflict(ApiResponse.ErrorResult($"Email '{updateUserDto.EmailId}' is already in use by another user."));
+            }
+
+            // 3. Validate role_id
+            var role = await _userRepository.GetRoleByIdAsync(updateUserDto.RoleId);
+            if (role == null)
+            {
+                return BadRequest(ApiResponse.ErrorResult($"Invalid role_id '{updateUserDto.RoleId}'. Please provide a valid role ID (1 = Admin, 2 = User, 3 = Manager)."));
+            }
+
+            // 4. Map DTO to Domain Model
+            var updatedDomainModel = _mapper.Map<User>(updateUserDto);
+            updatedDomainModel.Id = id;
+
+            // 5. If new password provided, hash with BCrypt; otherwise keep existing hash
+            if (!string.IsNullOrWhiteSpace(updateUserDto.Password))
+            {
+                updatedDomainModel.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updateUserDto.Password);
+            }
+            else
+            {
+                updatedDomainModel.PasswordHash = existingUser.PasswordHash;
+            }
+
+            // 6. Asynchronously update via Repository
+            var result = await _userRepository.UpdateAsync(id, updatedDomainModel);
+            if (result == null)
+            {
+                return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
+            }
+
+            // 7. Map to UserDto
+            var userDto = _mapper.Map<UserDto>(result);
+
+            _logger.LogInformation("User updated successfully: {Email} (ID: {Id})", result.EmailId, result.Id);
+
+            return Ok(ApiResponse<UserDto>.SuccessResult(userDto, "User updated successfully."));
+        }
+
+        // =========================================================================
+        // 3. DELETE USER API
+        // =========================================================================
+        /// <summary>
+        /// 3. Delete User API - Permanently deletes a user from the system by ID.
+        /// </summary>
+        /// <param name="id">Unique GUID identifier of the user</param>
+        /// <returns>Standardized ApiResponse containing deleted UserDto</returns>
+        [HttpDelete("delete_user/{id:guid}")]
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteUser([FromRoute] Guid id)
+        {
+            // 1. Verify user exists
+            var existingUser = await _userRepository.GetByIdAsync(id);
+            if (existingUser == null)
+            {
+                return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
+            }
+
+            // 2. Delete asynchronously via Repository
+            var deletedUser = await _userRepository.DeleteAsync(id);
+            if (deletedUser == null)
+            {
+                return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
+            }
+
+            var userDto = _mapper.Map<UserDto>(deletedUser);
+
+            _logger.LogInformation("User deleted successfully: {Email} (ID: {Id})", deletedUser.EmailId, deletedUser.Id);
+
+            return Ok(ApiResponse<UserDto>.SuccessResult(userDto, "User deleted successfully."));
+        }
+
+        // =========================================================================
+        // 4. FETCH ALL USERS API
+        // =========================================================================
+        /// <summary>
+        /// 4. Fetch All Users API - Retrieves all users with their roles.
+        /// </summary>
+        /// <returns>Standardized ApiResponse containing list of UserDto</returns>
         [HttpGet("fetch_users")]
         [HttpGet("")]
-        [ProducesResponseType(typeof(IEnumerable<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<UserDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> FetchUsers()
         {
             // 1. Asynchronously retrieve all users via Repository Pattern
@@ -95,37 +212,40 @@ namespace dailypracticeASPDotNet.Controllers
             // 2. Map domain models to UserDto collection using AutoMapper
             var userDtos = _mapper.Map<IEnumerable<UserDto>>(users);
 
-            return Ok(userDtos);
+            return Ok(ApiResponse<IEnumerable<UserDto>>.SuccessResult(userDtos, "Users fetched successfully."));
         }
 
+        // =========================================================================
+        // HELPER / DETAIL ENDPOINTS
+        // =========================================================================
         /// <summary>
-        /// Retrieves a single user by primary key ID.
+        /// Retrieves a single user by primary key GUID ID.
         /// </summary>
         [HttpGet("{id:guid}")]
-        [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetUserById([FromRoute] Guid id)
         {
             var user = await _userRepository.GetByIdAsync(id);
             if (user == null)
             {
-                return NotFound(new { message = $"User with ID '{id}' was not found." });
+                return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
             }
 
             var userDto = _mapper.Map<UserDto>(user);
-            return Ok(userDto);
+            return Ok(ApiResponse<UserDto>.SuccessResult(userDto, "User fetched successfully."));
         }
 
         /// <summary>
-        /// Retrieves all available roles in the system.
+        /// Retrieves all available roles in the system (1 = Admin, 2 = User, 3 = Manager).
         /// </summary>
         [HttpGet("roles")]
-        [ProducesResponseType(typeof(IEnumerable<RoleDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<RoleDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetRoles()
         {
             var roles = await _userRepository.GetAllRolesAsync();
             var roleDtos = _mapper.Map<IEnumerable<RoleDto>>(roles);
-            return Ok(roleDtos);
+            return Ok(ApiResponse<IEnumerable<RoleDto>>.SuccessResult(roleDtos, "Roles fetched successfully."));
         }
     }
 }

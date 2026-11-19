@@ -1,12 +1,16 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using dailypracticeASPDotNet.Data;
+using dailypracticeASPDotNet.DTOs;
 using dailypracticeASPDotNet.Mappings;
+using dailypracticeASPDotNet.Models;
 using dailypracticeASPDotNet.Repositories;
+using dailypracticeASPDotNet.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,9 +22,44 @@ if (!string.IsNullOrEmpty(port))
 }
 
 // ==========================================
-// 1. CONTROLLERS CONFIGURATION
+// 1. CONTROLLERS & STANDARDIZED API RESPONSE
 // ==========================================
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value!.Errors.Select(x => x.ErrorMessage).ToArray()
+                );
+
+            var apiResponse = new ApiResponse<object>
+            {
+                Success = false,
+                Message = "One or more validation errors occurred.",
+                Data = null,
+                Errors = errors
+            };
+
+            return new BadRequestObjectResult(apiResponse);
+        };
+    });
+
+// ==========================================
+// CORS (Cross-Origin Resource Sharing)
+// ==========================================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // ==========================================
 // 2. DATABASE CONTEXT CONFIGURATION
@@ -53,10 +92,18 @@ else
 }
 
 // ==========================================
-// 3. REPOSITORY PATTERN DEPENDENCY INJECTION
+// 3. REPOSITORY & SERVICES DEPENDENCY INJECTION
 // ==========================================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
+
+// In-Memory Cache & OTP Service for passwordless OTP login
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IOtpService, OtpService>();
+
+// Zoho CPaaS / ZeptoMail Transactional Email Service
+builder.Services.Configure<ZeptoMailSettings>(builder.Configuration.GetSection(ZeptoMailSettings.SectionName));
+builder.Services.AddHttpClient<IZeptoMailService, ZeptoMailService>();
 
 // ==========================================
 // 4. AUTOMAPPER REGISTRATION
@@ -105,7 +152,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Daily Practice Web API [Cloud Ready]",
         Version = "v1",
-        Description = "ASP.NET Core Web API with add_user, fetch_users, login API, JWT Authentication, EF Core, Repository Pattern, and AutoMapper"
+        Description = "ASP.NET Core Web API with Full User CRUD APIs (Add, Edit, Delete, Fetch All), Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
     });
 
     c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
@@ -178,6 +225,9 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
         c.RoutePrefix = string.Empty; // Serve Swagger UI directly at root
     });
 }
+
+// Enable CORS before Authentication & Authorization to handle browser OPTIONS preflight
+app.UseCors("AllowAll");
 
 // Authentication MUST be placed before Authorization
 app.UseAuthentication();

@@ -1,6 +1,128 @@
-@dailypracticeASPDotNet_HostAddress = http://localhost:5229
+@baseUrl = http://localhost:5229
+# For deployed Render URL, replace @baseUrl with your render URL, e.g.:
+# @baseUrl = https://dailypractice-aspdotnet-api.onrender.com
 
-GET {{dailypracticeASPDotNet_HostAddress}}/weatherforecast/
+### ==============================================================================
+### 1. FETCH ALL USERS API
+### ==============================================================================
+GET {{baseUrl}}/api/Users/fetch_users
 Accept: application/json
 
-###
+### Or using RESTful convention:
+GET {{baseUrl}}/api/Users
+Accept: application/json
+
+### ==============================================================================
+### 2. ADD USER API
+### ==============================================================================
+POST {{baseUrl}}/api/Users/add_user
+Content-Type: application/json
+
+{
+  "first_name": "John",
+  "middle_name": "Robert",
+  "last_name": "Doe",
+  "role_id": 2,
+  "password": "Password123!",
+  "address": "123 Main Street, Suite 400, New York",
+  "mobile_no": "+1-555-0199",
+  "email_id": "john.doe@example.com"
+}
+
+### ==============================================================================
+### 3. GET SINGLE USER BY ID API
+### (Replace the GUID with the ID returned by Add User or Fetch Users)
+### ==============================================================================
+@userId = 00000000-0000-0000-0000-000000000000
+
+GET {{baseUrl}}/api/Users/{{userId}}
+Accept: application/json
+
+### ==============================================================================
+### 4. EDIT / UPDATE USER API
+### ==============================================================================
+PUT {{baseUrl}}/api/Users/edit_user/{{userId}}
+Content-Type: application/json
+
+{
+  "first_name": "John",
+  "middle_name": "Robert",
+  "last_name": "Smith",
+  "role_id": 2,
+  "password": "NewSecurePassword456!",
+  "address": "789 Park Avenue, Floor 10, New York",
+  "mobile_no": "+1-555-0200",
+  "email_id": "john.smith@example.com"
+}
+
+### Or using RESTful convention:
+PUT {{baseUrl}}/api/Users/{{userId}}
+Content-Type: application/json
+
+{
+  "first_name": "John",
+  "middle_name": "Robert",
+  "last_name": "Smith",
+  "role_id": 2,
+  "address": "789 Park Avenue, Floor 10, New York",
+  "mobile_no": "+1-555-0200",
+  "email_id": "john.smith@example.com"
+}
+
+### ==============================================================================
+### 5. DELETE USER API
+### ==============================================================================
+DELETE {{baseUrl}}/api/Users/delete_user/{{userId}}
+Accept: application/json
+
+### Or using RESTful convention:
+DELETE {{baseUrl}}/api/Users/{{userId}}
+Accept: application/json
+
+### ==============================================================================
+### 6. GET ALL ROLES API
+### ==============================================================================
+GET {{baseUrl}}/api/Users/roles
+Accept: application/json
+
+### ==============================================================================
+### 7. LOGIN API (Authenticate & obtain JWT Bearer token)
+### ==============================================================================
+POST {{baseUrl}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "john.doe@example.com",
+  "password": "Password123!"
+}
+
+
+### ==============================================================================
+### 8. REQUEST LOGIN OTP (via ZeptoMail)
+### Rejects if email is NOT registered in our system; sends 6-digit OTP if registered.
+### ==============================================================================
+POST {{baseUrl}}/api/Auth/send-otp
+Content-Type: application/json
+
+{
+  "email": "john.doe@example.com"
+}
+
+### Test with an unregistered email (Should return 404 Not Found):
+POST {{baseUrl}}/api/Auth/send-otp
+Content-Type: application/json
+
+{
+  "email": "unregistered.user999@example.com"
+}
+
+### ==============================================================================
+### 9. VERIFY OTP & LOGIN (Get JWT Bearer Token)
+### ==============================================================================
+POST {{baseUrl}}/api/Auth/login-with-otp
+Content-Type: application/json
+
+{
+  "email": "john.doe@example.com",
+  "otp": "123456"
+}

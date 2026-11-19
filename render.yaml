@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: dailypractice-aspdotnet-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /api/Users/fetch_users
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: EnableSwagger
+        value: "true"
+      - key: ConnectionStrings__DefaultConnection
+        value: Data Source=dailypractice.db
+      - key: Jwt__Key
+        value: DailyPracticeSecretSuperKey1234567890!@#$%^&*()_+
+      - key: Jwt__Issuer
+        value: DailyPracticeASPDotNet
+      - key: Jwt__Audience
+        value: DailyPracticeASPDotNetUsers
+      - key: Jwt__DurationInMinutes
+        value: "60"
+      - key: ZeptoMail__UseSmtp
+        value: "true"
+      - key: ZeptoMail__SmtpHost
+        value: smtp.zeptomail.in
+      - key: ZeptoMail__SmtpPort
+        value: "587"
+      - key: ZeptoMail__SmtpUsername
+        value: emailapikey
+      - key: ZeptoMail__ApiUrl
+        value: https://api.zeptomail.in/v1.1/email
+      - key: ZeptoMail__SendMailToken
+        sync: false
+      - key: ZeptoMail__FromEmail
+        value: noreply@pawanborde.com
+      - key: ZeptoMail__FromName
+        value: Daily Practice App
+
