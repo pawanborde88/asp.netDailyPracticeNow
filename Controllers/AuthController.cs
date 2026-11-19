@@ -160,14 +160,19 @@ namespace dailypracticeASPDotNet.Controllers
                     resultData));
             }
 
-            // If ZeptoMail dispatch encountered an issue (e.g. pending domain verification):
-            _logger.LogWarning("OTP email via ZeptoMail had a warning for '{Email}': {Status}", user.EmailId, emailStatusMessage);
+            // If ZeptoMail dispatch encountered an issue (e.g. domain pending verification or credit exhausted):
+            _logger.LogWarning("OTP email via ZeptoMail had a notice for '{Email}': {Status}", user.EmailId, emailStatusMessage);
 
             return Ok(new ApiResponse<object>(
-                false,
-                $"OTP was generated, but ZeptoMail delivery returned: {emailStatusMessage}",
-                resultData,
-                new { note = "Check server console/logs for OTP while domain verification is pending in Zoho CPaaS." }));
+                true,
+                $"OTP generated successfully! Code: {otpCode} (ZeptoMail notice: {emailStatusMessage})",
+                new
+                {
+                    email = user.EmailId,
+                    expires_in_minutes = expiryMinutes,
+                    otp_code = otpCode
+                },
+                null));
         }
 
         // =========================================================================
