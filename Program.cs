@@ -94,6 +94,7 @@ else
 // 3. REPOSITORY & SERVICES DEPENDENCY INJECTION
 // ==========================================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
 builder.Services.AddScoped<IPhotoService, PhotoService>();
 

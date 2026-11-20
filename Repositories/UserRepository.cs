@@ -34,11 +34,9 @@ namespace dailypracticeASPDotNet.Repositories
 
         public async Task<User> CreateAsync(User user)
         {
-            // Database automatically generates the numeric integer ID upon insertion
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
-            // Load associated role
             await _context.Entry(user).Reference(u => u.Role).LoadAsync();
             return user;
         }
@@ -54,7 +52,6 @@ namespace dailypracticeASPDotNet.Repositories
                 return null;
             }
 
-            // Update scalar properties
             existingUser.FirstName = user.FirstName;
             existingUser.MiddleName = user.MiddleName;
             existingUser.LastName = user.LastName;
@@ -63,7 +60,6 @@ namespace dailypracticeASPDotNet.Repositories
             existingUser.Address = user.Address;
             existingUser.RoleId = user.RoleId;
 
-            // Update photo binary data if provided
             if (user.PhotoData != null && user.PhotoData.Length > 0)
             {
                 existingUser.PhotoData = user.PhotoData;
@@ -72,15 +68,12 @@ namespace dailypracticeASPDotNet.Repositories
                 existingUser.PhotoUrl = user.PhotoUrl;
             }
 
-            // Update password hash only if a new non-empty hash was assigned
             if (!string.IsNullOrWhiteSpace(user.PasswordHash))
             {
                 existingUser.PasswordHash = user.PasswordHash;
             }
 
             await _context.SaveChangesAsync();
-
-            // Reload associated role in case RoleId was updated
             await _context.Entry(existingUser).Reference(u => u.Role).LoadAsync();
 
             return existingUser;
@@ -144,6 +137,13 @@ namespace dailypracticeASPDotNet.Repositories
                 .AsNoTracking()
                 .OrderBy(u => u.Id)
                 .ToListAsync();
+        }
+
+        public IQueryable<User> GetUsersQuery()
+        {
+            return _context.Users
+                .Include(u => u.Role)
+                .AsNoTracking();
         }
 
         public async Task<Role?> GetRoleByIdAsync(int roleId)

@@ -19,5 +19,10 @@ namespace dailypracticeASPDotNet.Repositories
         Task<Role?> GetRoleByIdAsync(int roleId);
         Task<IEnumerable<Role>> GetAllRolesAsync();
         Task<User?> UpdatePhotoAsync(int id, byte[]? photoData, string? contentType, string? fileName, string? photoUrl);
+
+        /// <summary>
+        /// Returns an unmaterialized read-only IQueryable query for database-level filtering, sorting, and pagination.
+        /// </summary>
+        IQueryable<User> GetUsersQuery();
     }
 }

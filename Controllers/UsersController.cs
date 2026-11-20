@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using dailypracticeASPDotNet.DTOs;
+using dailypracticeASPDotNet.DTOs.Common;
 using dailypracticeASPDotNet.Models.Domain;
 using dailypracticeASPDotNet.Repositories;
 using dailypracticeASPDotNet.Services;
@@ -8,31 +9,35 @@ using dailypracticeASPDotNet.Services;
 namespace dailypracticeASPDotNet.Controllers
 {
     /// <summary>
-    /// Users Controller providing full CRUD and binary Photo management APIs with numeric digit user IDs (1, 2, 3...):
+    /// Users Controller providing full CRUD, centralized Pagination, and binary Photo management APIs with numeric digit user IDs (1, 2, 3...):
     /// 1. Add User with binary Photo upload (POST api/Users/add_user or POST api/Users)
     /// 2. Edit User with binary Photo update (PUT api/Users/edit_user/{id} or PUT api/Users/{id})
     /// 3. Get User Photo as raw binary file stream (GET api/Users/{id}/photo)
     /// 4. Upload / Replace User binary Photo (POST api/Users/{id}/upload_photo)
     /// 5. Delete User Photo (DELETE api/Users/{id}/photo)
     /// 6. Delete User (POST api/Users/delete_user with { "user_id": 1 } or DELETE api/Users/delete_user/{id})
-    /// 7. Fetch All Users (GET api/Users/fetch_users or GET api/Users)
+    /// 7. Centralized Paginated Users (GET / POST api/Users/paginated)
+    /// 8. Fetch All Users (GET api/Users/fetch_users or GET api/Users)
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
+        private readonly IUserService _userService;
         private readonly IPhotoService _photoService;
         private readonly IMapper _mapper;
         private readonly ILogger<UsersController> _logger;
 
         public UsersController(
             IUserRepository userRepository,
+            IUserService userService,
             IPhotoService photoService,
             IMapper mapper,
             ILogger<UsersController> logger)
         {
             _userRepository = userRepository;
+            _userService = userService;
             _photoService = photoService;
             _mapper = mapper;
             _logger = logger;
@@ -510,7 +515,50 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         // =========================================================================
-        // 6. FETCH ALL USERS API
+        // 6. CENTRALIZED REUSABLE PAGINATION API (GET & POST)
+        // =========================================================================
+        /// <summary>
+        /// 6. Paginated Users API (GET) - Retrieves a paginated, sorted, and filtered list of users with metadata.
+        /// Supports query parameters: pageNumber, pageSize, searchTerm, sortBy, sortDirection, role_id.
+        /// Automatically validates and clamps: pageNumber >= 1, pageSize between 1 and 100, safe sorting whitelist.
+        /// </summary>
+        /// <param name="request">Pagination, search, and filter parameters</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Standardized ApiResponse containing generic PaginationResponseDto of UserDto</returns>
+        [HttpGet("paginated")]
+        [HttpGet("paged")]
+        [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<UserDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetPaginatedUsers(
+            [FromQuery] UserPaginationRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var pagedResult = await _userService.GetPaginatedUsersAsync(request, cancellationToken);
+            return Ok(ApiResponse<PaginationResponseDto<UserDto>>.SuccessResult(pagedResult, "Paginated users retrieved successfully."));
+        }
+
+        /// <summary>
+        /// Paginated Users API (POST) - Retrieves a paginated, sorted, and filtered list of users via JSON body.
+        /// Ideal for modern client applications sending complex search/filter payloads via POST.
+        /// </summary>
+        /// <param name="request">JSON payload containing pagination, search, and filter parameters</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Standardized ApiResponse containing generic PaginationResponseDto of UserDto</returns>
+        [HttpPost("paginated")]
+        [HttpPost("paged")]
+        [Consumes("application/json")]
+        [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<UserDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetPaginatedUsersPost(
+            [FromBody] UserPaginationRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var pagedResult = await _userService.GetPaginatedUsersAsync(request, cancellationToken);
+            return Ok(ApiResponse<PaginationResponseDto<UserDto>>.SuccessResult(pagedResult, "Paginated users retrieved successfully."));
+        }
+
+        // =========================================================================
+        // 7. FETCH ALL USERS API (Unpaginated - Backwards Compatible)
         // =========================================================================
         /// <summary>
         /// 6. Fetch All Users API - Retrieves all users with their numeric IDs, roles, and photo URLs.

@@ -3,7 +3,55 @@
 # @baseUrl = https://dailypractice-aspdotnet-api.onrender.com
 
 ### ==============================================================================
-### 1. FETCH ALL USERS API
+### 1. CENTRALIZED REUSABLE PAGINATION API (GET & POST)
+### ==============================================================================
+
+### 1a. Default Pagination (Page 1, PageSize 10)
+GET {{baseUrl}}/api/Users/paginated
+Accept: application/json
+
+### 1b. Page 2 with PageSize 5
+GET {{baseUrl}}/api/Users/paginated?pageNumber=2&pageSize=5
+Accept: application/json
+
+### 1c. Missing PageNumber and PageSize (Automatically defaults to Page 1, PageSize 10)
+GET {{baseUrl}}/api/Users/paginated?searchTerm=
+Accept: application/json
+
+### 1d. Invalid / Negative PageNumber & PageSize (Automatically normalized: PageNumber=1, PageSize=10)
+GET {{baseUrl}}/api/Users/paginated?pageNumber=-5&pageSize=-20
+Accept: application/json
+
+### 1e. PageSize Greater than 100 (Clamped to Max allowed 100)
+GET {{baseUrl}}/api/Users/paginated?pageNumber=1&pageSize=500
+Accept: application/json
+
+### 1f. Search across multiple fields (e.g. name, email, address, role)
+GET {{baseUrl}}/api/Users/paginated?pageNumber=1&pageSize=10&searchTerm=john
+Accept: application/json
+
+### 1g. Filter by Role ID (e.g. role_id = 2 for Users) + Sort Ascending by FirstName
+GET {{baseUrl}}/api/Users/paginated?pageNumber=1&pageSize=10&role_id=2&sortBy=firstName&sortDirection=asc
+Accept: application/json
+
+### 1h. Empty Results (SearchTerm with zero matches returns TotalRecords=0 and TotalPages=0)
+GET {{baseUrl}}/api/Users/paginated?searchTerm=NonExistentUserXYZ99999
+Accept: application/json
+
+### 1i. POST Paginated Endpoint with JSON Payload
+POST {{baseUrl}}/api/Users/paginated
+Content-Type: application/json
+
+{
+  "pageNumber": 1,
+  "pageSize": 10,
+  "searchTerm": "",
+  "sortBy": "createdDate",
+  "sortDirection": "desc"
+}
+
+### ==============================================================================
+### 1j. FETCH ALL USERS API (Unpaginated - Backwards Compatible)
 ### ==============================================================================
 GET {{baseUrl}}/api/Users/fetch_users
 Accept: application/json
