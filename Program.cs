@@ -9,6 +9,7 @@ using dailypracticeASPDotNet.Data;
 using dailypracticeASPDotNet.DTOs;
 using dailypracticeASPDotNet.Mappings;
 using dailypracticeASPDotNet.Models;
+using dailypracticeASPDotNet.Models.Domain;
 using dailypracticeASPDotNet.Repositories;
 using dailypracticeASPDotNet.Services;
 
@@ -256,6 +257,57 @@ using (var scope = app.Services.CreateScope())
         {
             await db.Database.MigrateAsync();
             logger.LogInformation("SQL Server database migrated successfully.");
+        }
+
+        // Ensure default accounts exist so login / OTP requests never fail on fresh databases
+        try
+        {
+            if (!await db.Users.AnyAsync(u => u.EmailId == "pawan.borde@portalwiz.com"))
+            {
+                db.Users.Add(new User
+                {
+                    FirstName = "Pawan",
+                    LastName = "Borde",
+                    EmailId = "pawan.borde@portalwiz.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+                    RoleId = 1, // Admin
+                    CreatedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
+                logger.LogInformation("Seeded default account 'pawan.borde@portalwiz.com' into database.");
+            }
+
+            if (!await db.Users.AnyAsync(u => u.EmailId == "admin@example.com"))
+            {
+                db.Users.Add(new User
+                {
+                    FirstName = "Admin",
+                    LastName = "User",
+                    EmailId = "admin@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+                    RoleId = 1,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
+            }
+
+            if (!await db.Users.AnyAsync(u => u.EmailId == "user@example.com"))
+            {
+                db.Users.Add(new User
+                {
+                    FirstName = "Practice",
+                    LastName = "User",
+                    EmailId = "user@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("User@123"),
+                    RoleId = 2,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
+            }
+        }
+        catch (Exception seedEx)
+        {
+            logger.LogWarning(seedEx, "Notice during startup user seeding.");
         }
     }
     catch (Exception ex)

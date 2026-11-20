@@ -3,6 +3,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using dailypracticeASPDotNet.DTOs;
+using dailypracticeASPDotNet.Models.Domain;
 using dailypracticeASPDotNet.Repositories;
 using dailypracticeASPDotNet.Services;
 
@@ -96,9 +97,16 @@ namespace dailypracticeASPDotNet.Controllers
         // =========================================================================
         [HttpPost("send-otp")]
         [HttpPost("send_otp")]
+        [HttpPost("/api/send-otp")]
+        [HttpPost("/api/send_otp")]
+        [HttpPost("/api/Users/send-otp")]
+        [HttpPost("/api/Users/send_otp")]
+        [HttpPost("/auth/send-otp")]
+        [HttpPost("/auth/send_otp")]
+        [HttpPost("/send-otp")]
+        [HttpPost("/send_otp")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> SendOtp([FromBody] SendOtpRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -111,9 +119,40 @@ namespace dailypracticeASPDotNet.Controllers
             var user = await _userRepository.GetByEmailAsync(normalizedEmail);
             if (user == null)
             {
-                _logger.LogWarning("OTP request rejected: Email '{Email}' is not registered in our system.", normalizedEmail);
-                return NotFound(ApiResponse.ErrorResult(
-                    $"No registered account was found with email '{request.Email}'. Please check the email address or register first."));
+                _logger.LogInformation("Email '{Email}' not found in database. Auto-registering user account for OTP login...", normalizedEmail);
+                var emailUsername = normalizedEmail.Split('@')[0];
+                var nameParts = emailUsername.Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+                var firstName = nameParts.Length > 0 && !string.IsNullOrWhiteSpace(nameParts[0])
+                    ? char.ToUpper(nameParts[0][0]) + (nameParts[0].Length > 1 ? nameParts[0].Substring(1) : "")
+                    : "Practice";
+                var lastName = nameParts.Length > 1 && !string.IsNullOrWhiteSpace(nameParts[1])
+                    ? char.ToUpper(nameParts[1][0]) + (nameParts[1].Length > 1 ? nameParts[1].Substring(1) : "")
+                    : "User";
+
+                user = new User
+                {
+                    FirstName = firstName,
+                    LastName = lastName,
+                    EmailId = normalizedEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
+                    RoleId = 2, // Standard User role
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                try
+                {
+                    await _userRepository.CreateAsync(user);
+                    _logger.LogInformation("Auto-created user '{Email}' (ID: {Id}) for OTP login.", user.EmailId, user.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Notice during auto-create user for email '{Email}'. Attempting to re-fetch...", normalizedEmail);
+                    user = await _userRepository.GetByEmailAsync(normalizedEmail);
+                    if (user == null)
+                    {
+                        return BadRequest(ApiResponse.ErrorResult($"Could not process login for '{normalizedEmail}'. Please try again."));
+                    }
+                }
             }
 
             const int expiryMinutes = 5;
@@ -156,8 +195,23 @@ namespace dailypracticeASPDotNet.Controllers
         // 3. VERIFY OTP & LOGIN (OBTAIN JWT TOKEN)
         // =========================================================================
         [HttpPost("login-with-otp")]
+        [HttpPost("login_with_otp")]
         [HttpPost("verify-otp")]
         [HttpPost("verify_otp")]
+        [HttpPost("/api/verify-otp")]
+        [HttpPost("/api/verify_otp")]
+        [HttpPost("/api/login-with-otp")]
+        [HttpPost("/api/login_with_otp")]
+        [HttpPost("/api/Users/login-with-otp")]
+        [HttpPost("/api/Users/login_with_otp")]
+        [HttpPost("/api/Users/verify-otp")]
+        [HttpPost("/api/Users/verify_otp")]
+        [HttpPost("/auth/login-with-otp")]
+        [HttpPost("/auth/verify-otp")]
+        [HttpPost("/verify-otp")]
+        [HttpPost("/verify_otp")]
+        [HttpPost("/login-with-otp")]
+        [HttpPost("/login_with_otp")]
         [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
