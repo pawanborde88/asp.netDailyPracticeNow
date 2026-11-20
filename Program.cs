@@ -341,6 +341,21 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 // Enable CORS before Authentication & Authorization to handle browser OPTIONS preflight
 app.UseCors("AllowAll");
 
+// Normalize URL paths with consecutive slashes (e.g. /api//Auth/send-otp -> /api/Auth/send-otp)
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (!string.IsNullOrEmpty(path) && path.Contains("//"))
+    {
+        while (path.Contains("//"))
+        {
+            path = path.Replace("//", "/");
+        }
+        context.Request.Path = path;
+    }
+    await next();
+});
+
 // Authentication MUST be placed before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
