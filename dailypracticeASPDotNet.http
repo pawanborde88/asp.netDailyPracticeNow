@@ -129,8 +129,16 @@ Content-Type: application/json
 }
 
 ### ==============================================================================
-### 8. DELETE USER API (Also cleans up user photo)
+### 8. DELETE USER API (POST method with user_id in payload)
 ### ==============================================================================
+POST {{baseUrl}}/api/Users/delete_user
+Content-Type: application/json
+
+{
+  "user_id": 1
+}
+
+### Or using DELETE HTTP verb:
 DELETE {{baseUrl}}/api/Users/delete_user/{{userId}}
 Accept: application/json
 

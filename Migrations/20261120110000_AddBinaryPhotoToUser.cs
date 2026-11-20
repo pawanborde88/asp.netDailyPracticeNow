@@ -48,3 +48,4 @@ namespace dailypracticeASPDotNet.Migrations
         }
     }
 }
+

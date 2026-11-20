@@ -14,7 +14,7 @@ namespace dailypracticeASPDotNet.Controllers
     /// 3. Get User Photo as raw binary file stream (GET api/Users/{id}/photo)
     /// 4. Upload / Replace User binary Photo (POST api/Users/{id}/upload_photo)
     /// 5. Delete User Photo (DELETE api/Users/{id}/photo)
-    /// 6. Delete User (DELETE api/Users/delete_user/{id} or DELETE api/Users/{id})
+    /// 6. Delete User (POST api/Users/delete_user with { "user_id": 1 } or DELETE api/Users/delete_user/{id})
     /// 7. Fetch All Users (GET api/Users/fetch_users or GET api/Users)
     /// </summary>
     [Route("api/[controller]")]
@@ -420,10 +420,58 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         // =========================================================================
-        // 5. DELETE USER API
+        // 5. DELETE USER API (Supports POST with user_id payload & DELETE verb)
         // =========================================================================
         /// <summary>
-        /// 5. Delete User API - Permanently deletes a user from the system by numeric digit ID.
+        /// 5. Delete User API (POST) - Deletes a user by passing user_id in the request body.
+        /// Example payload: { "user_id": 1 }
+        /// </summary>
+        /// <param name="deleteDto">Payload containing user_id to delete</param>
+        /// <returns>Standardized ApiResponse containing deleted UserDto</returns>
+        [HttpPost("delete_user")]
+        [HttpPost("delete")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteUserPost([FromBody] DeleteUserRequestDto? deleteDto)
+        {
+            int userId = 0;
+            if (deleteDto != null && deleteDto.UserId > 0)
+            {
+                userId = deleteDto.UserId;
+            }
+            else if (Request.HasFormContentType)
+            {
+                if (int.TryParse(Request.Form["user_id"], out var idFromForm) ||
+                    int.TryParse(Request.Form["id"], out idFromForm))
+                {
+                    userId = idFromForm;
+                }
+            }
+
+            if (userId <= 0)
+            {
+                return BadRequest(ApiResponse.ErrorResult("A valid numeric 'user_id' is required."));
+            }
+
+            return await DeleteUserInternalAsync(userId);
+        }
+
+        /// <summary>
+        /// Delete User API (POST with route ID) - Deletes a user by numeric digit ID in URL.
+        /// </summary>
+        /// <param name="id">Numeric digit ID of the user</param>
+        [HttpPost("delete_user/{id:int}")]
+        [HttpPost("{id:int}/delete")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteUserPostRoute([FromRoute] int id)
+        {
+            return await DeleteUserInternalAsync(id);
+        }
+
+        /// <summary>
+        /// Delete User API (DELETE HTTP verb) - Standard RESTful deletion by numeric digit ID.
         /// </summary>
         /// <param name="id">Numeric digit ID of the user</param>
         [HttpDelete("delete_user/{id:int}")]
@@ -431,6 +479,11 @@ namespace dailypracticeASPDotNet.Controllers
         [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteUser([FromRoute] int id)
+        {
+            return await DeleteUserInternalAsync(id);
+        }
+
+        private async Task<IActionResult> DeleteUserInternalAsync(int id)
         {
             var existingUser = await _userRepository.GetByIdAsync(id);
             if (existingUser == null)
