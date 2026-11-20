@@ -51,8 +51,27 @@ Content-Type: application/json
 }
 
 ### ==============================================================================
-### 1j. FETCH ALL USERS API (Unpaginated - Backwards Compatible)
+### 1j. FETCH USERS API (POST Method with JSON Payload)
 ### ==============================================================================
+POST {{baseUrl}}/api/Users/fetch_users
+Content-Type: application/json
+
+{
+  "pageNumber": 1,
+  "pageSize": 10,
+  "searchTerm": "",
+  "sortBy": "id",
+  "sortDirection": "desc",
+  "role_id": 2
+}
+
+### Or with empty body {} (uses defaults: page 1, size 10):
+POST {{baseUrl}}/api/Users/fetch_users
+Content-Type: application/json
+
+{}
+
+### Or using GET HTTP verb (Unpaginated / All users):
 GET {{baseUrl}}/api/Users/fetch_users
 Accept: application/json
 

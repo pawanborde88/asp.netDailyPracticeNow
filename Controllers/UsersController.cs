@@ -558,10 +558,31 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         // =========================================================================
-        // 7. FETCH ALL USERS API (Unpaginated - Backwards Compatible)
+        // 7. FETCH USERS API (Supports POST with JSON Payload & GET)
         // =========================================================================
         /// <summary>
-        /// 6. Fetch All Users API - Retrieves all users with their numeric IDs, roles, and photo URLs.
+        /// 7. Fetch Users API (POST) - Retrieves paginated, sorted, and filtered users via JSON request payload.
+        /// Accepts pageNumber, pageSize, searchTerm, sortBy, sortDirection, and role_id in the request body.
+        /// </summary>
+        /// <param name="request">Optional pagination, search, and filter parameters (defaults to page 1, size 10 if null/empty)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Standardized ApiResponse containing paginated UserDto list and pagination metadata</returns>
+        [HttpPost("fetch_users")]
+        [HttpPost("fetch")]
+        [Consumes("application/json")]
+        [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<UserDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> FetchUsersPost(
+            [FromBody] UserPaginationRequestDto? request,
+            CancellationToken cancellationToken = default)
+        {
+            request ??= new UserPaginationRequestDto();
+            var pagedResult = await _userService.GetPaginatedUsersAsync(request, cancellationToken);
+            return Ok(ApiResponse<PaginationResponseDto<UserDto>>.SuccessResult(pagedResult, "Users fetched successfully."));
+        }
+
+        /// <summary>
+        /// Fetch All Users API (GET) - Retrieves all users with their numeric IDs, roles, and photo URLs (Unpaginated).
         /// </summary>
         [HttpGet("fetch_users")]
         [HttpGet("")]
