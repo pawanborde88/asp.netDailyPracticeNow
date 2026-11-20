@@ -13,20 +13,66 @@ GET {{baseUrl}}/api/Users
 Accept: application/json
 
 ### ==============================================================================
-### 2. ADD USER API
+### 2. ADD USER API (Option A: multipart/form-data with user photo upload)
+### ==============================================================================
+POST {{baseUrl}}/api/Users/add_user
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="first_name"
+
+John
+--WebAppBoundary
+Content-Disposition: form-data; name="middle_name"
+
+Robert
+--WebAppBoundary
+Content-Disposition: form-data; name="last_name"
+
+Doe
+--WebAppBoundary
+Content-Disposition: form-data; name="role_id"
+
+2
+--WebAppBoundary
+Content-Disposition: form-data; name="password"
+
+Password123!
+--WebAppBoundary
+Content-Disposition: form-data; name="address"
+
+123 Main Street, Suite 400, New York
+--WebAppBoundary
+Content-Disposition: form-data; name="mobile_no"
+
++1-555-0199
+--WebAppBoundary
+Content-Disposition: form-data; name="email_id"
+
+john.doe@example.com
+--WebAppBoundary
+Content-Disposition: form-data; name="photo"; filename="profile.jpg"
+Content-Type: image/jpeg
+
+< ./profile.jpg
+--WebAppBoundary--
+
+### ==============================================================================
+### 2b. ADD USER API (Option B: JSON payload)
 ### ==============================================================================
 POST {{baseUrl}}/api/Users/add_user
 Content-Type: application/json
 
 {
-  "first_name": "John",
-  "middle_name": "Robert",
-  "last_name": "Doe",
+  "first_name": "Jane",
+  "middle_name": "Marie",
+  "last_name": "Smith",
   "role_id": 2,
   "password": "Password123!",
-  "address": "123 Main Street, Suite 400, New York",
-  "mobile_no": "+1-555-0199",
-  "email_id": "john.doe@example.com"
+  "address": "456 Broadway, New York",
+  "mobile_no": "+1-555-0188",
+  "email_id": "jane.smith@example.com",
+  "photo_url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330"
 }
 
 ### ==============================================================================
@@ -39,7 +85,28 @@ GET {{baseUrl}}/api/Users/{{userId}}
 Accept: application/json
 
 ### ==============================================================================
-### 4. EDIT / UPDATE USER API
+### 4. DEDICATED PHOTO UPLOAD / UPDATE API
+### Uploads or replaces a photo for an existing user
+### ==============================================================================
+POST {{baseUrl}}/api/Users/{{userId}}/upload_photo
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="photo"; filename="avatar.png"
+Content-Type: image/png
+
+< ./avatar.png
+--WebAppBoundary--
+
+### ==============================================================================
+### 5. DELETE USER PHOTO API
+### Removes the photo from the user and deletes file from disk
+### ==============================================================================
+DELETE {{baseUrl}}/api/Users/{{userId}}/photo
+Accept: application/json
+
+### ==============================================================================
+### 6. EDIT / UPDATE USER API (JSON)
 ### ==============================================================================
 PUT {{baseUrl}}/api/Users/edit_user/{{userId}}
 Content-Type: application/json
@@ -55,38 +122,20 @@ Content-Type: application/json
   "email_id": "john.smith@example.com"
 }
 
-### Or using RESTful convention:
-PUT {{baseUrl}}/api/Users/{{userId}}
-Content-Type: application/json
-
-{
-  "first_name": "John",
-  "middle_name": "Robert",
-  "last_name": "Smith",
-  "role_id": 2,
-  "address": "789 Park Avenue, Floor 10, New York",
-  "mobile_no": "+1-555-0200",
-  "email_id": "john.smith@example.com"
-}
-
 ### ==============================================================================
-### 5. DELETE USER API
+### 7. DELETE USER API (Also automatically cleans up user photo from disk)
 ### ==============================================================================
 DELETE {{baseUrl}}/api/Users/delete_user/{{userId}}
 Accept: application/json
 
-### Or using RESTful convention:
-DELETE {{baseUrl}}/api/Users/{{userId}}
-Accept: application/json
-
 ### ==============================================================================
-### 6. GET ALL ROLES API
+### 8. GET ALL ROLES API
 ### ==============================================================================
 GET {{baseUrl}}/api/Users/roles
 Accept: application/json
 
 ### ==============================================================================
-### 7. LOGIN API (Authenticate & obtain JWT Bearer token)
+### 9. LOGIN API (Authenticate & obtain JWT Bearer token + user profile with photo_url)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/login
 Content-Type: application/json
@@ -96,10 +145,8 @@ Content-Type: application/json
   "password": "Password123!"
 }
 
-
 ### ==============================================================================
-### 8. REQUEST LOGIN OTP (via ZeptoMail)
-### Rejects if email is NOT registered in our system; sends 6-digit OTP if registered.
+### 10. REQUEST LOGIN OTP (via ZeptoMail)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/send-otp
 Content-Type: application/json
@@ -108,16 +155,8 @@ Content-Type: application/json
   "email": "john.doe@example.com"
 }
 
-### Test with an unregistered email (Should return 404 Not Found):
-POST {{baseUrl}}/api/Auth/send-otp
-Content-Type: application/json
-
-{
-  "email": "unregistered.user999@example.com"
-}
-
 ### ==============================================================================
-### 9. VERIFY OTP & LOGIN (Get JWT Bearer Token)
+### 11. VERIFY OTP & LOGIN (Get JWT Bearer Token)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/login-with-otp
 Content-Type: application/json

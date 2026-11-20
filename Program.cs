@@ -96,6 +96,7 @@ else
 // ==========================================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
+builder.Services.AddScoped<IPhotoService, PhotoService>();
 
 // In-Memory Cache & OTP Service for passwordless OTP login
 builder.Services.AddMemoryCache();
@@ -152,7 +153,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Daily Practice Web API [Cloud Ready]",
         Version = "v1",
-        Description = "ASP.NET Core Web API with Full User CRUD APIs (Add, Edit, Delete, Fetch All), Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
+        Description = "ASP.NET Core Web API with Full User CRUD APIs (Add with Photo Upload, Edit, Delete, Fetch All), Dedicated Photo Upload, Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
     });
 
     c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
@@ -185,7 +186,21 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 
 // ==========================================
-// 9. DATABASE INITIALIZATION & MIGRATIONS
+// 9. ENSURE WWWROOT & UPLOADS DIRECTORY EXISTS
+// ==========================================
+var webRootPath = app.Environment.WebRootPath;
+if (string.IsNullOrWhiteSpace(webRootPath))
+{
+    webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+}
+var uploadsDirectory = Path.Combine(webRootPath, "uploads", "user-photos");
+if (!Directory.Exists(uploadsDirectory))
+{
+    Directory.CreateDirectory(uploadsDirectory);
+}
+
+// ==========================================
+// 10. DATABASE INITIALIZATION & MIGRATIONS
 // ==========================================
 using (var scope = app.Services.CreateScope())
 {
@@ -197,6 +212,18 @@ using (var scope = app.Services.CreateScope())
         {
             // For SQLite (used seamlessly on Render/containers), EnsureCreated creates tables and seeds roles
             await db.Database.EnsureCreatedAsync();
+
+            // Safe backward-compatible column addition for pre-existing SQLite database files
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoUrl\" TEXT NULL;");
+                logger.LogInformation("Ensured PhotoUrl column exists on SQLite Users table.");
+            }
+            catch
+            {
+                // Ignored: column already exists in table
+            }
+
             logger.LogInformation("SQLite database initialized successfully.");
         }
         else
@@ -213,7 +240,17 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ==========================================
-// 10. HTTP REQUEST PIPELINE
+// 11. STATIC FILES SERVING (USER PHOTOS)
+// ==========================================
+// Enables serving uploaded profile photos from wwwroot (e.g. /uploads/user-photos/abc123.jpg)
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath),
+    RequestPath = ""
+});
+
+// ==========================================
+// 12. HTTP REQUEST PIPELINE
 // ==========================================
 // Serve Swagger UI on Development or in Container Deployments
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", true))

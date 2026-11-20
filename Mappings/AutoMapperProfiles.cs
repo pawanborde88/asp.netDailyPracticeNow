@@ -14,21 +14,24 @@ namespace dailypracticeASPDotNet.Mappings
         {
             // Map User Domain Model to UserDto
             CreateMap<User, UserDto>()
-                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role != null ? src.Role.Name : string.Empty));
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role != null ? src.Role.Name : string.Empty))
+                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src => src.PhotoUrl));
 
             // Map AddUserRequestDto to User Domain Model
             CreateMap<AddUserRequestDto, User>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.Role, opt => opt.Ignore());
+                .ForMember(dest => dest.Role, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src => src.PhotoUrl));
 
             // Map UpdateUserRequestDto to User Domain Model
             CreateMap<UpdateUserRequestDto, User>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.Role, opt => opt.Ignore());
+                .ForMember(dest => dest.Role, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src => src.PhotoUrl));
 
             // Map Role Domain Model to RoleDto
             CreateMap<Role, RoleDto>().ReverseMap();

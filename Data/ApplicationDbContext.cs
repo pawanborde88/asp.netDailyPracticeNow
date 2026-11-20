@@ -40,6 +40,7 @@ namespace dailypracticeASPDotNet.Data
                 entity.Property(u => u.PasswordHash).IsRequired();
                 entity.Property(u => u.MobileNo).HasMaxLength(20);
                 entity.Property(u => u.Address).HasMaxLength(250);
+                entity.Property(u => u.PhotoUrl).HasMaxLength(500);
 
                 // Foreign Key relationship to Role
                 entity.HasOne(u => u.Role)

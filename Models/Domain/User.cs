@@ -2,7 +2,7 @@ namespace dailypracticeASPDotNet.Models.Domain
 {
     /// <summary>
     /// Domain Model representing the User entity.
-    /// Includes first_name, middle_name, last_name, role_id, password_hash, address, mobile_no, and email_id.
+    /// Includes first_name, middle_name, last_name, role_id, password_hash, address, mobile_no, email_id, and photo_url.
     /// </summary>
     public class User
     {
@@ -23,6 +23,11 @@ namespace dailypracticeASPDotNet.Models.Domain
         public string? Address { get; set; }
 
         public int RoleId { get; set; }
+
+        /// <summary>
+        /// Relative URL or path to the user's uploaded profile photo (e.g. /uploads/user-photos/abc123.jpg).
+        /// </summary>
+        public string? PhotoUrl { get; set; }
 
         // Navigation property
         public Role? Role { get; set; }

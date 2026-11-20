@@ -65,6 +65,12 @@ namespace dailypracticeASPDotNet.Repositories
             existingUser.Address = user.Address;
             existingUser.RoleId = user.RoleId;
 
+            // Update photo URL if a new one was provided
+            if (!string.IsNullOrWhiteSpace(user.PhotoUrl))
+            {
+                existingUser.PhotoUrl = user.PhotoUrl;
+            }
+
             // Update password hash only if a new non-empty hash was assigned
             if (!string.IsNullOrWhiteSpace(user.PasswordHash))
             {
@@ -76,6 +82,22 @@ namespace dailypracticeASPDotNet.Repositories
             // Reload associated role in case RoleId was updated
             await _context.Entry(existingUser).Reference(u => u.Role).LoadAsync();
 
+            return existingUser;
+        }
+
+        public async Task<User?> UpdatePhotoAsync(Guid id, string? photoUrl)
+        {
+            var existingUser = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (existingUser == null)
+            {
+                return null;
+            }
+
+            existingUser.PhotoUrl = photoUrl;
+            await _context.SaveChangesAsync();
             return existingUser;
         }
 
