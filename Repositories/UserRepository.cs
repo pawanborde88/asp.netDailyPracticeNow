@@ -65,9 +65,12 @@ namespace dailypracticeASPDotNet.Repositories
             existingUser.Address = user.Address;
             existingUser.RoleId = user.RoleId;
 
-            // Update photo URL if a new one was provided
-            if (!string.IsNullOrWhiteSpace(user.PhotoUrl))
+            // Update photo binary data if provided
+            if (user.PhotoData != null && user.PhotoData.Length > 0)
             {
+                existingUser.PhotoData = user.PhotoData;
+                existingUser.PhotoContentType = user.PhotoContentType;
+                existingUser.PhotoFileName = user.PhotoFileName;
                 existingUser.PhotoUrl = user.PhotoUrl;
             }
 
@@ -85,7 +88,7 @@ namespace dailypracticeASPDotNet.Repositories
             return existingUser;
         }
 
-        public async Task<User?> UpdatePhotoAsync(Guid id, string? photoUrl)
+        public async Task<User?> UpdatePhotoAsync(Guid id, byte[]? photoData, string? contentType, string? fileName, string? photoUrl)
         {
             var existingUser = await _context.Users
                 .Include(u => u.Role)
@@ -96,7 +99,11 @@ namespace dailypracticeASPDotNet.Repositories
                 return null;
             }
 
+            existingUser.PhotoData = photoData;
+            existingUser.PhotoContentType = contentType;
+            existingUser.PhotoFileName = fileName;
             existingUser.PhotoUrl = photoUrl;
+
             await _context.SaveChangesAsync();
             return existingUser;
         }

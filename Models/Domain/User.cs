@@ -2,7 +2,8 @@ namespace dailypracticeASPDotNet.Models.Domain
 {
     /// <summary>
     /// Domain Model representing the User entity.
-    /// Includes first_name, middle_name, last_name, role_id, password_hash, address, mobile_no, email_id, and photo_url.
+    /// Includes first_name, middle_name, last_name, role_id, password_hash, address, mobile_no, email_id,
+    /// and raw binary photo data (byte[]).
     /// </summary>
     public class User
     {
@@ -25,7 +26,22 @@ namespace dailypracticeASPDotNet.Models.Domain
         public int RoleId { get; set; }
 
         /// <summary>
-        /// Relative URL or path to the user's uploaded profile photo (e.g. /uploads/user-photos/abc123.jpg).
+        /// Raw binary image data of the user photo stored directly in database.
+        /// </summary>
+        public byte[]? PhotoData { get; set; }
+
+        /// <summary>
+        /// MIME Content Type of the photo (e.g. image/jpeg, image/png).
+        /// </summary>
+        public string? PhotoContentType { get; set; }
+
+        /// <summary>
+        /// Original filename of the uploaded photo.
+        /// </summary>
+        public string? PhotoFileName { get; set; }
+
+        /// <summary>
+        /// Relative URL or endpoint path to access the photo (e.g. /api/Users/{id}/photo).
         /// </summary>
         public string? PhotoUrl { get; set; }
 

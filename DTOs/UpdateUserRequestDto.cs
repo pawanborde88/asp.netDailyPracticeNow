@@ -7,7 +7,8 @@ namespace dailypracticeASPDotNet.DTOs
 {
     /// <summary>
     /// Data Transfer Object for editing/updating an existing user via edit_user API.
-    /// Supports: first_name, middle_name, last_name, role_id, email_id, mobile_no, address, optional password, and photo upload.
+    /// Supports: first_name, middle_name, last_name, role_id, email_id, mobile_no, address, optional password,
+    /// and binary user photo file upload.
     /// </summary>
     public class UpdateUserRequestDto
     {
@@ -62,18 +63,17 @@ namespace dailypracticeASPDotNet.DTOs
         public string? Password { get; set; }
 
         /// <summary>
-        /// Optional updated user photo file (.jpg, .jpeg, .png, .webp, .gif, max 5MB).
+        /// User profile photo binary file (.jpg, .jpeg, .png, .webp, .gif, max 5MB).
+        /// Uploaded via multipart/form-data.
         /// </summary>
         [JsonPropertyName("photo")]
         [FromForm(Name = "photo")]
         public IFormFile? Photo { get; set; }
 
         /// <summary>
-        /// Optional updated external photo URL.
+        /// Optional Base64 encoded binary photo string (used when clients send application/json).
         /// </summary>
-        [MaxLength(500)]
-        [JsonPropertyName("photo_url")]
-        [FromForm(Name = "photo_url")]
-        public string? PhotoUrl { get; set; }
+        [JsonPropertyName("photo_base64")]
+        public string? PhotoBase64 { get; set; }
     }
 }

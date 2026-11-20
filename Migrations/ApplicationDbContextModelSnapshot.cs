@@ -104,6 +104,17 @@ namespace dailypracticeASPDotNet.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PhotoContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("PhotoData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("PhotoFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("PhotoUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");

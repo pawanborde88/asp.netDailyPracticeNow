@@ -64,7 +64,6 @@ builder.Services.AddCors(options =>
 // ==========================================
 // 2. DATABASE CONTEXT CONFIGURATION
 // ==========================================
-// Retrieves connection string (SQLite "dailypractice.db" in production/Render, SQL Server in local Development)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? "Data Source=dailypractice.db";
 
@@ -153,7 +152,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Daily Practice Web API [Cloud Ready]",
         Version = "v1",
-        Description = "ASP.NET Core Web API with Full User CRUD APIs (Add with Photo Upload, Edit, Delete, Fetch All), Dedicated Photo Upload, Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
+        Description = "ASP.NET Core Web API with Full User CRUD APIs (Add with Binary Photo Upload, Edit, Delete, Fetch All), Direct Binary Photo Stream, Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
     });
 
     c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
@@ -214,17 +213,12 @@ using (var scope = app.Services.CreateScope())
             await db.Database.EnsureCreatedAsync();
 
             // Safe backward-compatible column addition for pre-existing SQLite database files
-            try
-            {
-                await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoUrl\" TEXT NULL;");
-                logger.LogInformation("Ensured PhotoUrl column exists on SQLite Users table.");
-            }
-            catch
-            {
-                // Ignored: column already exists in table
-            }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoUrl\" TEXT NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoData\" BLOB NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoContentType\" TEXT NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoFileName\" TEXT NULL;"); } catch { }
 
-            logger.LogInformation("SQLite database initialized successfully.");
+            logger.LogInformation("SQLite database initialized successfully with binary photo columns.");
         }
         else
         {
@@ -242,7 +236,6 @@ using (var scope = app.Services.CreateScope())
 // ==========================================
 // 11. STATIC FILES SERVING (USER PHOTOS)
 // ==========================================
-// Enables serving uploaded profile photos from wwwroot (e.g. /uploads/user-photos/abc123.jpg)
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath),
@@ -252,7 +245,6 @@ app.UseStaticFiles(new StaticFileOptions
 // ==========================================
 // 12. HTTP REQUEST PIPELINE
 // ==========================================
-// Serve Swagger UI on Development or in Container Deployments
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", true))
 {
     app.UseSwagger();

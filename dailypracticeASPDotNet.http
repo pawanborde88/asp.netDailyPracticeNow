@@ -13,7 +13,7 @@ GET {{baseUrl}}/api/Users
 Accept: application/json
 
 ### ==============================================================================
-### 2. ADD USER API (Option A: multipart/form-data with user photo upload)
+### 2. ADD USER API (Binary Photo Upload via multipart/form-data)
 ### ==============================================================================
 POST {{baseUrl}}/api/Users/add_user
 Content-Type: multipart/form-data; boundary=WebAppBoundary
@@ -58,7 +58,7 @@ Content-Type: image/jpeg
 --WebAppBoundary--
 
 ### ==============================================================================
-### 2b. ADD USER API (Option B: JSON payload)
+### 2b. ADD USER API (Option B: JSON with optional Base64 binary photo)
 ### ==============================================================================
 POST {{baseUrl}}/api/Users/add_user
 Content-Type: application/json
@@ -71,8 +71,7 @@ Content-Type: application/json
   "password": "Password123!",
   "address": "456 Broadway, New York",
   "mobile_no": "+1-555-0188",
-  "email_id": "jane.smith@example.com",
-  "photo_url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330"
+  "email_id": "jane.smith@example.com"
 }
 
 ### ==============================================================================
@@ -85,8 +84,15 @@ GET {{baseUrl}}/api/Users/{{userId}}
 Accept: application/json
 
 ### ==============================================================================
-### 4. DEDICATED PHOTO UPLOAD / UPDATE API
-### Uploads or replaces a photo for an existing user
+### 4. GET USER PHOTO (Raw Binary Image Stream)
+### Returns binary image data (Content-Type: image/jpeg, image/png)
+### Directly viewable in browser or inside <img src="/api/Users/{id}/photo" />
+### ==============================================================================
+GET {{baseUrl}}/api/Users/{{userId}}/photo
+
+### ==============================================================================
+### 5. DEDICATED BINARY PHOTO UPLOAD / UPDATE API
+### Uploads or replaces raw binary photo for an existing user
 ### ==============================================================================
 POST {{baseUrl}}/api/Users/{{userId}}/upload_photo
 Content-Type: multipart/form-data; boundary=WebAppBoundary
@@ -99,14 +105,14 @@ Content-Type: image/png
 --WebAppBoundary--
 
 ### ==============================================================================
-### 5. DELETE USER PHOTO API
-### Removes the photo from the user and deletes file from disk
+### 6. DELETE USER PHOTO API
+### Removes binary photo data from database and deletes disk cache
 ### ==============================================================================
 DELETE {{baseUrl}}/api/Users/{{userId}}/photo
 Accept: application/json
 
 ### ==============================================================================
-### 6. EDIT / UPDATE USER API (JSON)
+### 7. EDIT / UPDATE USER API (JSON)
 ### ==============================================================================
 PUT {{baseUrl}}/api/Users/edit_user/{{userId}}
 Content-Type: application/json
@@ -123,19 +129,19 @@ Content-Type: application/json
 }
 
 ### ==============================================================================
-### 7. DELETE USER API (Also automatically cleans up user photo from disk)
+### 8. DELETE USER API (Also cleans up user photo)
 ### ==============================================================================
 DELETE {{baseUrl}}/api/Users/delete_user/{{userId}}
 Accept: application/json
 
 ### ==============================================================================
-### 8. GET ALL ROLES API
+### 9. GET ALL ROLES API
 ### ==============================================================================
 GET {{baseUrl}}/api/Users/roles
 Accept: application/json
 
 ### ==============================================================================
-### 9. LOGIN API (Authenticate & obtain JWT Bearer token + user profile with photo_url)
+### 10. LOGIN API (Authenticate & obtain JWT Bearer token + user profile)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/login
 Content-Type: application/json
@@ -146,7 +152,7 @@ Content-Type: application/json
 }
 
 ### ==============================================================================
-### 10. REQUEST LOGIN OTP (via ZeptoMail)
+### 11. REQUEST LOGIN OTP (via ZeptoMail)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/send-otp
 Content-Type: application/json
@@ -156,7 +162,7 @@ Content-Type: application/json
 }
 
 ### ==============================================================================
-### 11. VERIFY OTP & LOGIN (Get JWT Bearer Token)
+### 12. VERIFY OTP & LOGIN (Get JWT Bearer Token)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/login-with-otp
 Content-Type: application/json

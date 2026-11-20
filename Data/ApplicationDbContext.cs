@@ -40,6 +40,11 @@ namespace dailypracticeASPDotNet.Data
                 entity.Property(u => u.PasswordHash).IsRequired();
                 entity.Property(u => u.MobileNo).HasMaxLength(20);
                 entity.Property(u => u.Address).HasMaxLength(250);
+
+                // Binary Photo columns
+                entity.Property(u => u.PhotoData); // Maps to VARBINARY(MAX) in SQL Server, BLOB in SQLite
+                entity.Property(u => u.PhotoContentType).HasMaxLength(100);
+                entity.Property(u => u.PhotoFileName).HasMaxLength(255);
                 entity.Property(u => u.PhotoUrl).HasMaxLength(500);
 
                 // Foreign Key relationship to Role

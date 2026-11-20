@@ -18,6 +18,6 @@ namespace dailypracticeASPDotNet.Repositories
         Task<IEnumerable<User>> GetAllAsync();
         Task<Role?> GetRoleByIdAsync(int roleId);
         Task<IEnumerable<Role>> GetAllRolesAsync();
-        Task<User?> UpdatePhotoAsync(Guid id, string? photoUrl);
+        Task<User?> UpdatePhotoAsync(Guid id, byte[]? photoData, string? contentType, string? fileName, string? photoUrl);
     }
 }

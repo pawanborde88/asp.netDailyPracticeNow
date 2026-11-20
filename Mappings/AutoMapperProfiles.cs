@@ -15,7 +15,10 @@ namespace dailypracticeASPDotNet.Mappings
             // Map User Domain Model to UserDto
             CreateMap<User, UserDto>()
                 .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role != null ? src.Role.Name : string.Empty))
-                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src => src.PhotoUrl));
+                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src =>
+                    !string.IsNullOrWhiteSpace(src.PhotoUrl)
+                        ? src.PhotoUrl
+                        : (src.PhotoData != null && src.PhotoData.Length > 0 ? $"/api/Users/{src.Id}/photo" : null)));
 
             // Map AddUserRequestDto to User Domain Model
             CreateMap<AddUserRequestDto, User>()
@@ -23,7 +26,10 @@ namespace dailypracticeASPDotNet.Mappings
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.Role, opt => opt.Ignore())
-                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src => src.PhotoUrl));
+                .ForMember(dest => dest.PhotoData, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoContentType, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoFileName, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoUrl, opt => opt.Ignore());
 
             // Map UpdateUserRequestDto to User Domain Model
             CreateMap<UpdateUserRequestDto, User>()
@@ -31,7 +37,10 @@ namespace dailypracticeASPDotNet.Mappings
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.Role, opt => opt.Ignore())
-                .ForMember(dest => dest.PhotoUrl, opt => opt.MapFrom(src => src.PhotoUrl));
+                .ForMember(dest => dest.PhotoData, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoContentType, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoFileName, opt => opt.Ignore())
+                .ForMember(dest => dest.PhotoUrl, opt => opt.Ignore());
 
             // Map Role Domain Model to RoleDto
             CreateMap<Role, RoleDto>().ReverseMap();

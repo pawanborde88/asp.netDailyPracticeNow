@@ -8,14 +8,14 @@ using dailypracticeASPDotNet.Services;
 namespace dailypracticeASPDotNet.Controllers
 {
     /// <summary>
-    /// Users Controller providing full CRUD and Photo management APIs with a standardized ApiResponse envelope:
-    /// 1. Add User with Photo upload (POST api/Users/add_user or POST api/Users)
-    /// 2. Edit User with Photo update (PUT api/Users/edit_user/{id} or PUT api/Users/{id})
-    /// 3. Upload / Replace User Photo (POST api/Users/{id}/upload_photo)
-    /// 4. Delete User Photo (DELETE api/Users/{id}/photo)
-    /// 5. Delete User (DELETE api/Users/delete_user/{id} or DELETE api/Users/{id})
-    /// 6. Fetch All Users (GET api/Users/fetch_users or GET api/Users)
-    /// Format: { "success": true, "message": "...", "data": ..., "errors": null }
+    /// Users Controller providing full CRUD and binary Photo management APIs with a standardized ApiResponse envelope:
+    /// 1. Add User with binary Photo upload (POST api/Users/add_user or POST api/Users)
+    /// 2. Edit User with binary Photo update (PUT api/Users/edit_user/{id} or PUT api/Users/{id})
+    /// 3. Get User Photo as raw binary file stream (GET api/Users/{id}/photo)
+    /// 4. Upload / Replace User binary Photo (POST api/Users/{id}/upload_photo)
+    /// 5. Delete User Photo (DELETE api/Users/{id}/photo)
+    /// 6. Delete User (DELETE api/Users/delete_user/{id} or DELETE api/Users/{id})
+    /// 7. Fetch All Users (GET api/Users/fetch_users or GET api/Users)
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -39,13 +39,13 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         // =========================================================================
-        // 1. ADD USER API (Supports Multipart Form Data with Photo Upload & JSON)
+        // 1. ADD USER API (Accepts binary Photo Upload via multipart/form-data)
         // =========================================================================
         /// <summary>
-        /// 1. Add User API - Creates a new user with validation, BCrypt password hashing, and optional photo upload.
-        /// Accepts multipart/form-data with user details and photo file (.jpg, .jpeg, .png, .webp, .gif, max 5MB).
+        /// 1. Add User API - Creates a new user with validation, BCrypt password hashing, and binary photo upload.
+        /// Accepts multipart/form-data containing user fields and binary photo file (.jpg, .jpeg, .png, .webp, .gif, max 5MB).
         /// </summary>
-        /// <param name="addUserDto">Payload containing user details and optional photo</param>
+        /// <param name="addUserDto">Payload containing user details and binary photo</param>
         /// <returns>Standardized ApiResponse containing created UserDto</returns>
         [HttpPost("add_user")]
         [HttpPost("")]
@@ -59,7 +59,7 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         /// <summary>
-        /// Add User API (JSON Overload) - Supports clients sending application/json payloads.
+        /// Add User API (JSON Overload) - Supports clients sending application/json payloads with optional Base64 binary photo.
         /// </summary>
         [HttpPost("add_user")]
         [HttpPost("")]
@@ -94,8 +94,9 @@ namespace dailypracticeASPDotNet.Controllers
                 return BadRequest(ApiResponse.ErrorResult($"Invalid role_id '{addUserDto.RoleId}'. Please provide a valid role ID (1 = Admin, 2 = User, 3 = Manager)."));
             }
 
-            // 3. Process photo upload if provided in form data
-            string? savedPhotoUrl = null;
+            // 3. Process binary photo upload
+            PhotoProcessResult? photoResult = null;
+
             var photoFile = addUserDto.Photo
                 ?? (Request.HasFormContentType && Request.Form.Files.Count > 0
                     ? (Request.Form.Files["photo"]
@@ -107,27 +108,37 @@ namespace dailypracticeASPDotNet.Controllers
 
             if (photoFile != null && photoFile.Length > 0)
             {
-                var (saveSuccess, photoUrl, errorMessage) = await _photoService.SavePhotoAsync(photoFile);
-                if (!saveSuccess)
+                photoResult = await _photoService.ProcessPhotoAsync(photoFile);
+                if (!photoResult.Success)
                 {
-                    return BadRequest(ApiResponse.ErrorResult(errorMessage ?? "Failed to save user photo."));
+                    return BadRequest(ApiResponse.ErrorResult(photoResult.ErrorMessage ?? "Failed to process photo binary data."));
                 }
-                savedPhotoUrl = photoUrl;
             }
-            else if (!string.IsNullOrWhiteSpace(addUserDto.PhotoUrl))
+            else if (!string.IsNullOrWhiteSpace(addUserDto.PhotoBase64))
             {
-                savedPhotoUrl = addUserDto.PhotoUrl.Trim();
+                photoResult = await _photoService.ProcessBase64PhotoAsync(addUserDto.PhotoBase64);
+                if (!photoResult.Success)
+                {
+                    return BadRequest(ApiResponse.ErrorResult(photoResult.ErrorMessage ?? "Failed to process Base64 binary photo."));
+                }
             }
 
             // 4. Hash password securely using BCrypt
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(addUserDto.Password);
 
-            // 5. Map DTO to User domain model using AutoMapper
+            // 5. Map DTO to User domain model
             var userDomainModel = _mapper.Map<User>(addUserDto);
             userDomainModel.Id = Guid.NewGuid();
             userDomainModel.PasswordHash = passwordHash;
             userDomainModel.CreatedAt = DateTime.UtcNow;
-            userDomainModel.PhotoUrl = savedPhotoUrl;
+
+            if (photoResult?.Success == true)
+            {
+                userDomainModel.PhotoData = photoResult.BinaryData;
+                userDomainModel.PhotoContentType = photoResult.ContentType;
+                userDomainModel.PhotoFileName = photoResult.FileName;
+                userDomainModel.PhotoUrl = photoResult.RelativeUrl ?? $"/api/Users/{userDomainModel.Id}/photo";
+            }
 
             // 6. Asynchronously persist to database via Repository Pattern
             try
@@ -136,34 +147,31 @@ namespace dailypracticeASPDotNet.Controllers
             }
             catch (Exception ex)
             {
-                // If database persistence fails, clean up the uploaded photo file
-                if (!string.IsNullOrWhiteSpace(savedPhotoUrl))
+                // Clean up static copy if DB insert fails
+                if (!string.IsNullOrWhiteSpace(userDomainModel.PhotoUrl))
                 {
-                    _photoService.DeletePhoto(savedPhotoUrl);
+                    _photoService.DeletePhoto(userDomainModel.PhotoUrl);
                 }
                 _logger.LogError(ex, "Failed to persist new user to database.");
                 return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResult("Failed to create user. Please try again."));
             }
 
-            // 7. Map created domain model back to safe UserDto using AutoMapper
+            // 7. Map created domain model back to safe UserDto
             var userDto = _mapper.Map<UserDto>(userDomainModel);
 
-            _logger.LogInformation("New user created successfully: {Email} (ID: {Id}, Photo: {Photo})",
-                userDomainModel.EmailId, userDomainModel.Id, userDomainModel.PhotoUrl ?? "None");
+            _logger.LogInformation("New user created successfully: {Email} (ID: {Id}, PhotoBytes: {Bytes})",
+                userDomainModel.EmailId, userDomainModel.Id, userDomainModel.PhotoData?.Length ?? 0);
 
             var response = ApiResponse<UserDto>.SuccessResult(userDto, "User added successfully.");
             return CreatedAtAction(nameof(GetUserById), new { id = userDomainModel.Id }, response);
         }
 
         // =========================================================================
-        // 2. EDIT / UPDATE USER API (Supports Multipart Form Data with Photo & JSON)
+        // 2. EDIT / UPDATE USER API (Supports binary Photo Update & JSON)
         // =========================================================================
         /// <summary>
-        /// 2. Edit User API - Updates an existing user's details and optional photo by ID.
+        /// 2. Edit User API - Updates an existing user's details and optional binary photo by ID.
         /// </summary>
-        /// <param name="id">Unique GUID identifier of the user</param>
-        /// <param name="updateUserDto">Updated user information and optional photo file</param>
-        /// <returns>Standardized ApiResponse containing updated UserDto</returns>
         [HttpPut("edit_user/{id:guid}")]
         [HttpPut("{id:guid}")]
         [Consumes("multipart/form-data")]
@@ -177,7 +185,7 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         /// <summary>
-        /// Edit User API (JSON Overload) - Updates user details via application/json payload.
+        /// Edit User API (JSON Overload) - Updates user details via application/json.
         /// </summary>
         [HttpPut("edit_user/{id:guid}")]
         [HttpPut("{id:guid}")]
@@ -206,7 +214,7 @@ namespace dailypracticeASPDotNet.Controllers
                 return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
             }
 
-            // 2. Validate email uniqueness (ensure no other user already uses this email)
+            // 2. Validate email uniqueness
             var emailExistsOnOtherUser = await _userRepository.ExistsByEmailExcludingUserAsync(updateUserDto.EmailId, id);
             if (emailExistsOnOtherUser)
             {
@@ -220,7 +228,7 @@ namespace dailypracticeASPDotNet.Controllers
                 return BadRequest(ApiResponse.ErrorResult($"Invalid role_id '{updateUserDto.RoleId}'. Please provide a valid role ID (1 = Admin, 2 = User, 3 = Manager)."));
             }
 
-            // 4. Handle photo file update if provided
+            // 4. Handle binary photo update if provided
             var photoFile = updateUserDto.Photo
                 ?? (Request.HasFormContentType && Request.Form.Files.Count > 0
                     ? (Request.Form.Files["photo"]
@@ -230,32 +238,49 @@ namespace dailypracticeASPDotNet.Controllers
                        ?? Request.Form.Files[0])
                     : null);
 
-            string? finalPhotoUrl = existingUser.PhotoUrl;
+            PhotoProcessResult? photoResult = null;
             if (photoFile != null && photoFile.Length > 0)
             {
-                var (saveSuccess, photoUrl, errorMessage) = await _photoService.SavePhotoAsync(photoFile);
-                if (!saveSuccess)
+                photoResult = await _photoService.ProcessPhotoAsync(photoFile);
+                if (!photoResult.Success)
                 {
-                    return BadRequest(ApiResponse.ErrorResult(errorMessage ?? "Failed to save updated photo."));
+                    return BadRequest(ApiResponse.ErrorResult(photoResult.ErrorMessage ?? "Failed to process photo binary data."));
                 }
-
-                // Delete previous photo file from disk if different
-                if (!string.IsNullOrWhiteSpace(existingUser.PhotoUrl))
-                {
-                    _photoService.DeletePhoto(existingUser.PhotoUrl);
-                }
-
-                finalPhotoUrl = photoUrl;
             }
-            else if (!string.IsNullOrWhiteSpace(updateUserDto.PhotoUrl))
+            else if (!string.IsNullOrWhiteSpace(updateUserDto.PhotoBase64))
             {
-                finalPhotoUrl = updateUserDto.PhotoUrl.Trim();
+                photoResult = await _photoService.ProcessBase64PhotoAsync(updateUserDto.PhotoBase64);
+                if (!photoResult.Success)
+                {
+                    return BadRequest(ApiResponse.ErrorResult(photoResult.ErrorMessage ?? "Failed to process Base64 binary photo."));
+                }
             }
 
             // 5. Map DTO to Domain Model
             var updatedDomainModel = _mapper.Map<User>(updateUserDto);
             updatedDomainModel.Id = id;
-            updatedDomainModel.PhotoUrl = finalPhotoUrl;
+
+            if (photoResult?.Success == true)
+            {
+                // Delete previous static photo file if present
+                if (!string.IsNullOrWhiteSpace(existingUser.PhotoUrl))
+                {
+                    _photoService.DeletePhoto(existingUser.PhotoUrl);
+                }
+
+                updatedDomainModel.PhotoData = photoResult.BinaryData;
+                updatedDomainModel.PhotoContentType = photoResult.ContentType;
+                updatedDomainModel.PhotoFileName = photoResult.FileName;
+                updatedDomainModel.PhotoUrl = photoResult.RelativeUrl ?? $"/api/Users/{id}/photo";
+            }
+            else
+            {
+                // Preserve existing photo binary data
+                updatedDomainModel.PhotoData = existingUser.PhotoData;
+                updatedDomainModel.PhotoContentType = existingUser.PhotoContentType;
+                updatedDomainModel.PhotoFileName = existingUser.PhotoFileName;
+                updatedDomainModel.PhotoUrl = existingUser.PhotoUrl;
+            }
 
             // 6. If new password provided, hash with BCrypt; otherwise keep existing hash
             if (!string.IsNullOrWhiteSpace(updateUserDto.Password))
@@ -283,13 +308,49 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         // =========================================================================
-        // 3. DEDICATED PHOTO MANAGEMENT ENDPOINTS
+        // 3. GET USER PHOTO (Raw Binary Stream for <img> tags and browsers)
         // =========================================================================
         /// <summary>
-        /// Uploads or updates the profile photo for an existing user.
+        /// 3. Get User Photo API - Streams the raw binary image data directly to the browser or client.
+        /// Can be used directly in HTML image tags, e.g. &lt;img src="/api/Users/{id}/photo" /&gt;
+        /// </summary>
+        /// <param name="id">Unique GUID identifier of the user</param>
+        /// <returns>Binary file stream with appropriate image MIME content type (e.g. image/jpeg, image/png)</returns>
+        [HttpGet("{id:guid}/photo")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetUserPhoto([FromRoute] Guid id)
+        {
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
+            }
+
+            if (user.PhotoData == null || user.PhotoData.Length == 0)
+            {
+                return NotFound(ApiResponse.ErrorResult("This user does not have a profile photo uploaded."));
+            }
+
+            var contentType = !string.IsNullOrWhiteSpace(user.PhotoContentType)
+                ? user.PhotoContentType
+                : "image/jpeg";
+
+            var fileName = !string.IsNullOrWhiteSpace(user.PhotoFileName)
+                ? user.PhotoFileName
+                : "profile.jpg";
+
+            return File(user.PhotoData, contentType, fileName);
+        }
+
+        // =========================================================================
+        // 4. DEDICATED PHOTO MANAGEMENT ENDPOINTS
+        // =========================================================================
+        /// <summary>
+        /// Uploads or updates the binary profile photo for an existing user.
         /// </summary>
         /// <param name="id">GUID of the target user</param>
-        /// <param name="photo">Image file (.jpg, .jpeg, .png, .webp, .gif, max 5MB)</param>
+        /// <param name="photo">Binary image file (.jpg, .jpeg, .png, .webp, .gif, max 5MB)</param>
         [HttpPost("{id:guid}/upload_photo")]
         [HttpPost("{id:guid}/photo")]
         [Consumes("multipart/form-data")]
@@ -309,26 +370,32 @@ namespace dailypracticeASPDotNet.Controllers
                 return BadRequest(ApiResponse.ErrorResult("Please select an image file to upload."));
             }
 
-            var (saveSuccess, photoUrl, errorMessage) = await _photoService.SavePhotoAsync(photo);
-            if (!saveSuccess)
+            var photoResult = await _photoService.ProcessPhotoAsync(photo);
+            if (!photoResult.Success)
             {
-                return BadRequest(ApiResponse.ErrorResult(errorMessage ?? "Failed to save photo."));
+                return BadRequest(ApiResponse.ErrorResult(photoResult.ErrorMessage ?? "Failed to process photo binary data."));
             }
 
-            // Delete old photo if existed
+            // Delete old static photo file if present
             if (!string.IsNullOrWhiteSpace(user.PhotoUrl))
             {
                 _photoService.DeletePhoto(user.PhotoUrl);
             }
 
-            var updatedUser = await _userRepository.UpdatePhotoAsync(id, photoUrl);
+            var updatedUser = await _userRepository.UpdatePhotoAsync(
+                id,
+                photoResult.BinaryData,
+                photoResult.ContentType,
+                photoResult.FileName,
+                photoResult.RelativeUrl ?? $"/api/Users/{id}/photo");
+
             var userDto = _mapper.Map<UserDto>(updatedUser);
 
-            return Ok(ApiResponse<UserDto>.SuccessResult(userDto, "User photo uploaded successfully."));
+            return Ok(ApiResponse<UserDto>.SuccessResult(userDto, "User binary photo uploaded and saved successfully."));
         }
 
         /// <summary>
-        /// Deletes the profile photo of an existing user and removes the file from disk.
+        /// Deletes the profile photo of an existing user and removes binary data and disk cache.
         /// </summary>
         /// <param name="id">GUID of the target user</param>
         [HttpDelete("{id:guid}/photo")]
@@ -347,40 +414,36 @@ namespace dailypracticeASPDotNet.Controllers
                 _photoService.DeletePhoto(user.PhotoUrl);
             }
 
-            var updatedUser = await _userRepository.UpdatePhotoAsync(id, null);
+            var updatedUser = await _userRepository.UpdatePhotoAsync(id, null, null, null, null);
             var userDto = _mapper.Map<UserDto>(updatedUser);
 
             return Ok(ApiResponse<UserDto>.SuccessResult(userDto, "User photo removed successfully."));
         }
 
         // =========================================================================
-        // 4. DELETE USER API
+        // 5. DELETE USER API
         // =========================================================================
         /// <summary>
-        /// 4. Delete User API - Permanently deletes a user from the system by ID and removes any associated photo file.
+        /// 5. Delete User API - Permanently deletes a user from the system by ID and removes any associated photo.
         /// </summary>
-        /// <param name="id">Unique GUID identifier of the user</param>
-        /// <returns>Standardized ApiResponse containing deleted UserDto</returns>
         [HttpDelete("delete_user/{id:guid}")]
         [HttpDelete("{id:guid}")]
         [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteUser([FromRoute] Guid id)
         {
-            // 1. Verify user exists
             var existingUser = await _userRepository.GetByIdAsync(id);
             if (existingUser == null)
             {
                 return NotFound(ApiResponse.ErrorResult($"User with ID '{id}' was not found."));
             }
 
-            // 2. Clean up user's photo file from disk if present
+            // Clean up static photo file from disk if present
             if (!string.IsNullOrWhiteSpace(existingUser.PhotoUrl))
             {
                 _photoService.DeletePhoto(existingUser.PhotoUrl);
             }
 
-            // 3. Delete asynchronously via Repository
             var deletedUser = await _userRepository.DeleteAsync(id);
             if (deletedUser == null)
             {
@@ -395,21 +458,17 @@ namespace dailypracticeASPDotNet.Controllers
         }
 
         // =========================================================================
-        // 5. FETCH ALL USERS API
+        // 6. FETCH ALL USERS API
         // =========================================================================
         /// <summary>
-        /// 5. Fetch All Users API - Retrieves all users with their roles and photo URLs.
+        /// 6. Fetch All Users API - Retrieves all users with their roles and photo access URLs.
         /// </summary>
-        /// <returns>Standardized ApiResponse containing list of UserDto</returns>
         [HttpGet("fetch_users")]
         [HttpGet("")]
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<UserDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> FetchUsers()
         {
-            // 1. Asynchronously retrieve all users via Repository Pattern
             var users = await _userRepository.GetAllAsync();
-
-            // 2. Map domain models to UserDto collection using AutoMapper
             var userDtos = _mapper.Map<IEnumerable<UserDto>>(users);
 
             return Ok(ApiResponse<IEnumerable<UserDto>>.SuccessResult(userDtos, "Users fetched successfully."));

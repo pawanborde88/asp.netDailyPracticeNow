@@ -4,7 +4,7 @@ namespace dailypracticeASPDotNet.DTOs
 {
     /// <summary>
     /// Safe User response DTO returned by fetch_users, add_user, and edit_user APIs.
-    /// Excludes sensitive details such as PasswordHash, and includes photo_url.
+    /// Excludes sensitive details such as PasswordHash, and provides photo_url and has_photo.
     /// </summary>
     public class UserDto
     {
@@ -40,6 +40,12 @@ namespace dailypracticeASPDotNet.DTOs
         [JsonPropertyName("role_name")]
         public string? RoleName { get; set; }
 
+        [JsonPropertyName("has_photo")]
+        public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoUrl);
+
+        /// <summary>
+        /// Direct URL to view/stream the user's binary photo (e.g. /api/Users/{id}/photo).
+        /// </summary>
         [JsonPropertyName("photo_url")]
         public string? PhotoUrl { get; set; }
 

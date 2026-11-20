@@ -7,7 +7,8 @@ namespace dailypracticeASPDotNet.DTOs
 {
     /// <summary>
     /// Data Transfer Object for creating a new user via add_user API.
-    /// Supports: first_name, middle_name, last_name, role_id, password, address, mobile_no, email_id, and photo upload.
+    /// Supports: first_name, middle_name, last_name, role_id, password, address, mobile_no, email_id,
+    /// and binary user photo file upload.
     /// </summary>
     public class AddUserRequestDto
     {
@@ -58,18 +59,17 @@ namespace dailypracticeASPDotNet.DTOs
         public string EmailId { get; set; } = string.Empty;
 
         /// <summary>
-        /// Optional user photo file to upload (.jpg, .jpeg, .png, .webp, .gif, max 5MB).
+        /// User profile photo binary file (.jpg, .jpeg, .png, .webp, .gif, max 5MB).
+        /// Uploaded via multipart/form-data.
         /// </summary>
         [JsonPropertyName("photo")]
         [FromForm(Name = "photo")]
         public IFormFile? Photo { get; set; }
 
         /// <summary>
-        /// Optional external photo URL if photo is hosted elsewhere.
+        /// Optional Base64 encoded binary photo string (used when clients send application/json).
         /// </summary>
-        [MaxLength(500)]
-        [JsonPropertyName("photo_url")]
-        [FromForm(Name = "photo_url")]
-        public string? PhotoUrl { get; set; }
+        [JsonPropertyName("photo_base64")]
+        public string? PhotoBase64 { get; set; }
     }
 }
