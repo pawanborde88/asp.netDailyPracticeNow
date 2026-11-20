@@ -152,7 +152,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Daily Practice Web API [Cloud Ready]",
         Version = "v1",
-        Description = "ASP.NET Core Web API with Full User CRUD APIs (Add with Binary Photo Upload, Edit, Delete, Fetch All), Direct Binary Photo Stream, Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
+        Description = "ASP.NET Core Web API with Full User CRUD APIs (Numeric Digit User IDs, Binary Photo Upload, Edit, Delete, Fetch All), Direct Binary Photo Stream, Zoho CPaaS / ZeptoMail OTP Login, Password Login, JWT Authentication, and Repository Pattern."
     });
 
     c.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
@@ -209,20 +209,50 @@ using (var scope = app.Services.CreateScope())
     {
         if (db.Database.IsSqlite())
         {
-            // For SQLite (used seamlessly on Render/containers), EnsureCreated creates tables and seeds roles
+            // For SQLite, check if existing table has legacy Guid (TEXT) primary key and recreate if needed
+            try
+            {
+                await db.Database.OpenConnectionAsync();
+                using var command = db.Database.GetDbConnection().CreateCommand();
+                command.CommandText = "PRAGMA table_info(Users);";
+                using var reader = await command.ExecuteReaderAsync();
+                bool idIsText = false;
+                while (await reader.ReadAsync())
+                {
+                    var colName = reader["name"]?.ToString();
+                    var colType = reader["type"]?.ToString();
+                    if (string.Equals(colName, "Id", StringComparison.OrdinalIgnoreCase) &&
+                        colType?.Contains("TEXT", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        idIsText = true;
+                        break;
+                    }
+                }
+                await reader.CloseAsync();
+
+                if (idIsText)
+                {
+                    logger.LogWarning("Detected legacy GUID primary key in SQLite Users table. Recreating Users table with numeric Integer primary key...");
+                    await db.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS Users;");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Notice during SQLite table inspect.");
+            }
+
             await db.Database.EnsureCreatedAsync();
 
-            // Safe backward-compatible column addition for pre-existing SQLite database files
+            // Safe backward-compatible column checks
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoUrl\" TEXT NULL;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoData\" BLOB NULL;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoContentType\" TEXT NULL;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Users\" ADD COLUMN \"PhotoFileName\" TEXT NULL;"); } catch { }
 
-            logger.LogInformation("SQLite database initialized successfully with binary photo columns.");
+            logger.LogInformation("SQLite database initialized successfully with numeric digit user IDs (1, 2, 3...).");
         }
         else
         {
-            // For SQL Server, apply EF Core migrations
             await db.Database.MigrateAsync();
             logger.LogInformation("SQL Server database migrated successfully.");
         }

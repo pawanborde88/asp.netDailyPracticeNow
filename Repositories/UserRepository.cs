@@ -5,7 +5,7 @@ using dailypracticeASPDotNet.Models.Domain;
 namespace dailypracticeASPDotNet.Repositories
 {
     /// <summary>
-    /// Entity Framework Core implementation of IUserRepository.
+    /// Entity Framework Core implementation of IUserRepository supporting numeric digit user IDs.
     /// Incorporates async/await pattern and eager loading of related entities.
     /// </summary>
     public class UserRepository : IUserRepository
@@ -20,15 +20,13 @@ namespace dailypracticeASPDotNet.Repositories
         public async Task<User?> GetByEmailAsync(string email)
         {
             var normalizedEmail = email.Trim().ToLower();
-            // Asynchronously queries user by email including their Role
             return await _context.Users
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.EmailId.ToLower() == normalizedEmail);
         }
 
-        public async Task<User?> GetByIdAsync(Guid id)
+        public async Task<User?> GetByIdAsync(int id)
         {
-            // Asynchronously queries user by primary key including their Role
             return await _context.Users
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Id == id);
@@ -36,16 +34,16 @@ namespace dailypracticeASPDotNet.Repositories
 
         public async Task<User> CreateAsync(User user)
         {
-            // Asynchronously adds entity and commits transaction to the database
+            // Database automatically generates the numeric integer ID upon insertion
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
-            // Load the associated role for the created user
+            // Load associated role
             await _context.Entry(user).Reference(u => u.Role).LoadAsync();
             return user;
         }
 
-        public async Task<User?> UpdateAsync(Guid id, User user)
+        public async Task<User?> UpdateAsync(int id, User user)
         {
             var existingUser = await _context.Users
                 .Include(u => u.Role)
@@ -88,7 +86,7 @@ namespace dailypracticeASPDotNet.Repositories
             return existingUser;
         }
 
-        public async Task<User?> UpdatePhotoAsync(Guid id, byte[]? photoData, string? contentType, string? fileName, string? photoUrl)
+        public async Task<User?> UpdatePhotoAsync(int id, byte[]? photoData, string? contentType, string? fileName, string? photoUrl)
         {
             var existingUser = await _context.Users
                 .Include(u => u.Role)
@@ -108,7 +106,7 @@ namespace dailypracticeASPDotNet.Repositories
             return existingUser;
         }
 
-        public async Task<User?> DeleteAsync(Guid id)
+        public async Task<User?> DeleteAsync(int id)
         {
             var existingUser = await _context.Users
                 .Include(u => u.Role)
@@ -128,26 +126,23 @@ namespace dailypracticeASPDotNet.Repositories
         public async Task<bool> ExistsByEmailAsync(string email)
         {
             var normalizedEmail = email.Trim().ToLower();
-            // Asynchronously checks if user with this email already exists
             return await _context.Users
                 .AnyAsync(u => u.EmailId.ToLower() == normalizedEmail);
         }
 
-        public async Task<bool> ExistsByEmailExcludingUserAsync(string email, Guid userId)
+        public async Task<bool> ExistsByEmailExcludingUserAsync(string email, int userId)
         {
             var normalizedEmail = email.Trim().ToLower();
-            // Asynchronously checks if another user exists with this email
             return await _context.Users
                 .AnyAsync(u => u.EmailId.ToLower() == normalizedEmail && u.Id != userId);
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
         {
-            // Asynchronously retrieves all users with their roles
             return await _context.Users
                 .Include(u => u.Role)
                 .AsNoTracking()
-                .OrderByDescending(u => u.CreatedAt)
+                .OrderBy(u => u.Id)
                 .ToListAsync();
         }
 

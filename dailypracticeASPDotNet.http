@@ -14,6 +14,7 @@ Accept: application/json
 
 ### ==============================================================================
 ### 2. ADD USER API (Binary Photo Upload via multipart/form-data)
+### Returns user with numeric digit ID (1, 2, 3...)
 ### ==============================================================================
 POST {{baseUrl}}/api/Users/add_user
 Content-Type: multipart/form-data; boundary=WebAppBoundary
@@ -75,10 +76,9 @@ Content-Type: application/json
 }
 
 ### ==============================================================================
-### 3. GET SINGLE USER BY ID API
-### (Replace the GUID with the ID returned by Add User or Fetch Users)
+### 3. GET SINGLE USER BY DIGIT ID API
 ### ==============================================================================
-@userId = 00000000-0000-0000-0000-000000000000
+@userId = 1
 
 GET {{baseUrl}}/api/Users/{{userId}}
 Accept: application/json
@@ -86,13 +86,13 @@ Accept: application/json
 ### ==============================================================================
 ### 4. GET USER PHOTO (Raw Binary Image Stream)
 ### Returns binary image data (Content-Type: image/jpeg, image/png)
-### Directly viewable in browser or inside <img src="/api/Users/{id}/photo" />
+### Directly viewable in browser or inside <img src="/api/Users/1/photo" />
 ### ==============================================================================
 GET {{baseUrl}}/api/Users/{{userId}}/photo
 
 ### ==============================================================================
 ### 5. DEDICATED BINARY PHOTO UPLOAD / UPDATE API
-### Uploads or replaces raw binary photo for an existing user
+### Uploads or replaces raw binary photo for an existing user by digit ID
 ### ==============================================================================
 POST {{baseUrl}}/api/Users/{{userId}}/upload_photo
 Content-Type: multipart/form-data; boundary=WebAppBoundary
@@ -141,7 +141,7 @@ GET {{baseUrl}}/api/Users/roles
 Accept: application/json
 
 ### ==============================================================================
-### 10. LOGIN API (Authenticate & obtain JWT Bearer token + user profile)
+### 10. LOGIN API (Authenticate & obtain JWT Bearer token + user profile with digit ID)
 ### ==============================================================================
 POST {{baseUrl}}/api/Auth/login
 Content-Type: application/json

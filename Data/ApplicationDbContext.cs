@@ -5,7 +5,7 @@ namespace dailypracticeASPDotNet.Data
 {
     /// <summary>
     /// ApplicationDbContext coordinates Entity Framework Core data access.
-    /// Manages DbSets for Users and Roles, foreign keys, indexes, and initial data seeding.
+    /// Manages DbSets for Users and Roles, auto-incrementing integer identity keys, foreign keys, indexes, and role seeding.
     /// </summary>
     public class ApplicationDbContext : DbContext
     {
@@ -28,10 +28,11 @@ namespace dailypracticeASPDotNet.Data
                 entity.Property(r => r.Description).HasMaxLength(200);
             });
 
-            // Configure User entity
+            // Configure User entity with numeric integer primary key (auto-increment identity)
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(u => u.Id);
+                entity.Property(u => u.Id).ValueGeneratedOnAdd();
                 entity.HasIndex(u => u.EmailId).IsUnique();
                 entity.Property(u => u.FirstName).IsRequired().HasMaxLength(50);
                 entity.Property(u => u.MiddleName).HasMaxLength(50);
@@ -64,9 +65,6 @@ namespace dailypracticeASPDotNet.Data
             var managerRole = new Role { Id = 3, Name = "Manager", Description = "Management user with elevated access" };
 
             modelBuilder.Entity<Role>().HasData(adminRole, userRole, managerRole);
-
-            // Roles are seeded to provide valid role_id values (1 = Admin, 2 = User, 3 = Manager)
-            // Users are dynamically created via the add_user API (no hardcoded users)
         }
     }
 }

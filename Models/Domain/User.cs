@@ -2,12 +2,11 @@ namespace dailypracticeASPDotNet.Models.Domain
 {
     /// <summary>
     /// Domain Model representing the User entity.
-    /// Includes first_name, middle_name, last_name, role_id, password_hash, address, mobile_no, email_id,
-    /// and raw binary photo data (byte[]).
+    /// Uses an auto-incrementing integer identifier (1, 2, 3...) for user ID.
     /// </summary>
     public class User
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public int Id { get; set; }
 
         public required string FirstName { get; set; }
 

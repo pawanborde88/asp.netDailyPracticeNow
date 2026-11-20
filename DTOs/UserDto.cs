@@ -4,12 +4,15 @@ namespace dailypracticeASPDotNet.DTOs
 {
     /// <summary>
     /// Safe User response DTO returned by fetch_users, add_user, and edit_user APIs.
-    /// Excludes sensitive details such as PasswordHash, and provides photo_url and has_photo.
+    /// Excludes sensitive details such as PasswordHash, and provides integer ID, photo_url and has_photo.
     /// </summary>
     public class UserDto
     {
+        /// <summary>
+        /// Numeric auto-incrementing digit user identifier (e.g. 1, 2, 3...).
+        /// </summary>
         [JsonPropertyName("id")]
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         [JsonPropertyName("first_name")]
         public required string FirstName { get; set; }
