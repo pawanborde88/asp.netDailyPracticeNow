@@ -35,7 +35,7 @@ services:
       - key: ZeptoMail__SendMailToken
         value: Zoho-enczapikey PHtE6r1bS+noimR7oBNR5f7rEsDxYIgoqe1gfgBCudxLAvFRG00Eo919kGLhox95VfUWFP7NzIM+srOes+2GI2/qY2kZD2qyqK3sx/VYSPOZsbq6x00asFQfcEzdVofocN5j0yHQstjYNA==
       - key: ZeptoMail__FromEmail
-        value: noreply@pawanborde.com
+        value: noreply@rbdevelops.co.in
       - key: ZeptoMail__FromName
         value: Daily Practice App
 

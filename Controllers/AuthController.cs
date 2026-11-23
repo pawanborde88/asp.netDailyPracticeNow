@@ -167,7 +167,8 @@ namespace dailypracticeASPDotNet.Controllers
             var resultData = new
             {
                 email = user.EmailId,
-                expires_in_minutes = expiryMinutes
+                expires_in_minutes = expiryMinutes,
+                otp_code = otpCode
             };
 
             if (isEmailSent)

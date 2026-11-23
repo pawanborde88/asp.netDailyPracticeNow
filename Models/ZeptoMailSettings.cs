@@ -62,9 +62,9 @@ namespace dailypracticeASPDotNet.Models
         // Sender Details
         // ==========================================
         /// <summary>
-        /// Verified sender email configured on your domain in Zoho CPaaS (e.g. noreply@pawanborde.com).
+        /// Verified sender email configured on your domain in Zoho CPaaS (e.g. noreply@rbdevelops.co.in).
         /// </summary>
-        public string FromEmail { get; set; } = "noreply@pawanborde.com";
+        public string FromEmail { get; set; } = "noreply@rbdevelops.co.in";
 
         /// <summary>
         /// Sender display name.
